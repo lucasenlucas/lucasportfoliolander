@@ -3,214 +3,170 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>lucasmangroelal.nl</title>
+  <title>Lucas Terminal</title>
   <style>
     :root {
-      --accent: #FFD66B;
-      --text: #ffffff;
-      --bg: #1b1b1b;
-      --glow: #fff9c4;
+      --green: #66ff66;
     }
 
     * {
       box-sizing: border-box;
-      margin: 0;
-      padding: 0;
     }
 
     body {
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', sans-serif;
-      text-align: center;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      flex-direction: column;
+      background-color: #000;
+      background: radial-gradient(#177317, #000);
+      box-shadow: inset 0 0 30rem #000000;
+      color: var(--green);
+      font-family: "VT323", monospace;
+      font-size: 1.4rem;
+      padding: 1rem;
+      margin: 0;
       overflow: hidden;
+      height: 100vh;
     }
 
-    .typewriter {
-      font-size: 2.6em;
-      margin-bottom: 40px;
-      position: relative;
-      display: inline-block;
-      letter-spacing: 1px;
+    #terminal-history {
+      list-style: none;
+      padding-left: 0;
+      margin-bottom: 1rem;
     }
 
-    .typewriter::after {
-      content: "";
-      position: absolute;
-      height: 100%;
-      width: 3px;
-      background: var(--accent);
-      animation: blink 0.8s infinite;
-      right: -10px;
-      top: 0;
+    #terminal-input {
+      display: flex;
+      align-items: center;
+    }
+
+    #terminal-text {
+      flex: 1;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    #caret {
+      background-color: var(--green);
+      width: 8px;
+      height: 1.5rem;
+      animation: blink 1s steps(5, start) infinite;
     }
 
     @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
-    }
-
-    .letter {
-      display: inline-block;
-      opacity: 0;
-      transform: translateY(20px);
-      animation: popIn 0.5s forwards;
-    }
-
-    @keyframes popIn {
-      0% {
-        opacity: 0;
-        transform: translateY(20px) scale(0.8);
-      }
-      100% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
+      to {
+        visibility: hidden;
       }
     }
 
-    .emoji-button-container {
-      position: relative;
-      margin: 30px;
-    }
-
-    .emoji-button {
-      background: transparent;
-      border: 2px solid var(--accent);
-      padding: 18px 35px;
-      color: var(--accent);
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 14px;
-      cursor: pointer;
-      position: relative;
-      z-index: 1;
-      overflow: hidden;
-      transition: 0.4s ease all;
-    }
-
-    .emoji-button:hover {
-      background-color: var(--accent);
-      color: #000;
-      transform: scale(1.05);
-      box-shadow: 0 0 18px var(--glow);
-    }
-
-    .emoji-animations {
-      position: absolute;
-      top: -40px;
+    #alert {
+      position: fixed;
       left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 12px;
-      pointer-events: none;
-      transition: transform 0.5s ease, opacity 0.5s ease;
-      opacity: 0;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 4rem;
+      display: none;
+      animation: blink 1s steps(5, start) infinite;
     }
 
-    .emoji-button-container:hover .emoji-animations {
-      transform: translateX(-50%) translateY(-10px);
-      opacity: 1;
-    }
-
-    .emoji {
-      font-size: 24px;
-      transform: translateY(10px);
-      opacity: 0;
-      animation: floatUp 0.5s forwards;
-    }
-
-    .emoji-button-container:hover .emoji:nth-child(1) { animation-delay: 0.1s; }
-    .emoji-button-container:hover .emoji:nth-child(2) { animation-delay: 0.2s; }
-    .emoji-button-container:hover .emoji:nth-child(3) { animation-delay: 0.3s; }
-    .emoji-button-container:hover .emoji:nth-child(4) { animation-delay: 0.4s; }
-
-    @keyframes floatUp {
-      0% {
-        transform: translateY(10px);
-        opacity: 0;
-      }
-      100% {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
-    @media (max-width: 600px) {
-      .typewriter {
-        font-size: 2em;
-      }
-
-      .emoji-button {
-        font-size: 16px;
-        padding: 14px 24px;
-      }
-
-      .emoji {
-        font-size: 20px;
-      }
+    #alert.active {
+      display: block;
     }
   </style>
 </head>
 <body>
 
-  <h1 class="typewriter" id="typing"></h1>
+  <ul id="terminal-history"></ul>
+  <div id="terminal-input">
+    <span>&gt; </span><span id="terminal-text"></span><span id="caret"></span>
+  </div>
+  <div id="alert">ABORT...</div>
 
-  <a href="https://portfolio.lucasmangroelal.nl" class="emoji-button-container" target="_blank">
-    <div class="emoji-animations">
-      <span class="emoji">🧑‍💻</span>
-      <span class="emoji">😎</span>
-      <span class="emoji">💼</span>
-      <span class="emoji">🪪</span>
-    </div>
-    <button class="emoji-button">Bekijk mijn portfolio</button>
-  </a>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
 
-  <a href="https://lucaskit.lucasmangroelal.nl" class="emoji-button-container" target="_blank">
-    <div class="emoji-animations">
-      <span class="emoji">💻</span>
-      <span class="emoji">👾</span>
-      <span class="emoji">🚀</span>
-      <span class="emoji">🔨</span>
-    </div>
-    <button class="emoji-button">Open LucasKit</button>
-  </a>
+    const firebaseConfig = {
+      apiKey: "AIzaSyClKhiiSVZ3sj_6dqzxZAT9owaFHfJHrnk",
+      authDomain: "portfolio-lucas-8461a.firebaseapp.com",
+      projectId: "portfolio-lucas-8461a",
+      storageBucket: "portfolio-lucas-8461a.appspot.com",
+      messagingSenderId: "474096039312",
+      appId: "1:474096039312:web:5cee76f8389f9c02e1af15"
+    };
 
-   <a href="https://paprika-verhalen.lucasmangroelal.nl" class="emoji-button-container" target="_blank">
-    <div class="emoji-animations">
-      <span class="emoji">🫑</span>
-      <span class="emoji">📖</span>
-      <span class="emoji">🌶️</span>
-      <span class="emoji">📚</span>
-    </div>
-    <button class="emoji-button">Open Paprika Verhalen</button>
-  </a>
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const routes = {};
+    const startupMessages = [
+      "Booting system...",
+      "Loading config...",
+      "Ready.",
+      "Voer het nummer in van je keuze:"
+    ];
 
-   <a href="https://brainrot-news.lucasmangroelal.nl/index.html" class="emoji-button-container" target="_blank">
-    <div class="emoji-animations">
-      <span class="emoji">🧠</span>
-      <span class="emoji">🦠</span>
-      <span class="emoji">👽</span>
-      <span class="emoji">🧠</span>
-    </div>
-    <button class="emoji-button">Open Paprika Verhalen</button>
-  </a>
+    const historyEl = document.querySelector('#terminal-history');
+    const terminalText = document.querySelector('#terminal-text');
+    const alertBox = document.querySelector('#alert');
+    let currentText = "";
 
-  <script>
-    const text = "Hoi, ik ben lucasmangroelal";
-    const target = document.getElementById("typing");
+    async function loadLinks() {
+      const snapshot = await getDocs(collection(db, "terminalLinks"));
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        startupMessages.push(`[${data.nummer}] ${data.label}`);
+        routes[data.nummer] = data.url;
+      });
+      showStartup();
+    }
 
-    text.split("").forEach((char, i) => {
-      const span = document.createElement("span");
-      span.classList.add("letter");
-      span.style.animationDelay = `${i * 0.05}s`;
-      span.innerHTML = char === " " ? "&nbsp;" : char;
-      target.appendChild(span);
+    function delayMsg(msg, delay) {
+      setTimeout(() => {
+        const li = document.createElement("li");
+        li.textContent = msg;
+        historyEl.appendChild(li);
+        scrollToBottom();
+      }, delay);
+    }
+
+    function scrollToBottom() {
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    function showStartup() {
+      startupMessages.forEach((msg, i) => delayMsg(msg, i * 500));
+    }
+
+    function navigate(option) {
+      if (routes[option]) {
+        window.location.href = routes[option];
+      } else {
+        const li = document.createElement("li");
+        li.textContent = "Ongeldige invoer. Kies een geldig nummer.";
+        historyEl.appendChild(li);
+        scrollToBottom();
+      }
+    }
+
+    window.addEventListener("keyup", (e) => {
+      const key = e.key;
+      if (key === "Enter") {
+        if (currentText.toLowerCase() === "glitch") {
+          alertBox.classList.add("active");
+        } else {
+          const li = document.createElement("li");
+          li.textContent = "> " + currentText;
+          historyEl.appendChild(li);
+          navigate(currentText.trim());
+        }
+        currentText = "";
+      } else if (key === "Backspace") {
+        currentText = currentText.slice(0, -1);
+      } else if (key.length === 1) {
+        currentText += key;
+      }
+
+      terminalText.textContent = currentText;
     });
+
+    loadLinks();
   </script>
 </body>
 </html>
