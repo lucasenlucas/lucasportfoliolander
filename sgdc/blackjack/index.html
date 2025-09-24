@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>SGDC Live — Blackjack</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --bg:#0e1023; --panel:#171a37; --cardbg:#121534; --text:#e8ecff; --muted:#a2a9d6;
+      --accent:#f4b73b; --good:#46d27a; --warn:#ff6b6b; --border:rgba(255,255,255,.12);
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    a{color:inherit}
+    .topbar{position:sticky;top:0;z-index:20;background:rgba(23,26,55,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+    .nav{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:12px 16px}
+    .ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:10px;text-decoration:none}
+    .ghost:hover{background:rgba(255,255,255,.06)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+    .brand img{width:28px;height:28px;border-radius:6px}
+    .spacer{flex:1}
+    .balance{font-weight:800;color:var(--good)}
+    .wrap{max-width:1100px;margin:18px auto 40px;padding:0 16px;display:grid;grid-template-columns:340px 1fr;gap:18px}
+    @media (max-width:900px){ .wrap{grid-template-columns:1fr} }
+
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+    .title{margin:0 0 8px}
+
+    /* Controls */
+    .controls{display:grid;gap:10px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .input{display:flex;align-items:center;gap:8px;background:#0b0d25;border:1px solid var(--border);border-radius:12px;padding:8px 10px}
+    .input input,.input select{flex:1;background:transparent;border:0;color:var(--text);font:inherit;outline:none;min-width:0}
+    .suffix{opacity:.9;font-weight:800}
+    .btn{padding:10px 14px;border:none;border-radius:12px;font-weight:800;cursor:pointer}
+    .btn.primary{background:var(--accent);color:#2a1b00}
+    .btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .muted{color:var(--muted)}
+
+    .kpis{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+    .chip{background:rgba(255,255,255,.08);padding:8px 10px;border-radius:12px}
+    .kpi{font-weight:800}
+
+    /* Table */
+    .table{background:var(--cardbg);border:1px solid var(--border);border-radius:16px;padding:14px;position:relative;overflow:hidden}
+    .table h3{margin:0 0 8px}
+    .zone{display:flex;gap:10px;flex-wrap:wrap;min-height:160px}
+    .hand{position:relative;min-width:210px;padding:8px 8px 10px;border:1px dashed rgba(255,255,255,.12);border-radius:12px}
+    .hand.active{box-shadow:0 0 0 2px rgba(255,255,255,.20) inset}
+    .sum{position:absolute;top:8px;right:10px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:4px 8px;border-radius:999px;font-weight:800}
+    .sum.blackjack{background:#0f3a26;border-color:#1a6b43;color:#b7ffd7}
+    .sum.bust{background:#3d0f1c;border-color:#792c3f;color:#ffd5db}
+    .cards{display:flex;gap:8px;align-items:center;min-height:136px}
+
+    /* Card images with simple animations */
+    .card-img{width:84px;height:118px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.45);background:#0b0d25;
+      transform:translateY(12px) scale(.98);opacity:0;animation:deal .35s ease forwards}
+    @keyframes deal{to{transform:none;opacity:1}}
+    .face-down{filter:brightness(.7) saturate(.8)}
+    .flip{animation:flip .4s ease both}
+    @keyframes flip{from{transform:rotateY(90deg)} to{transform:rotateY(0)}}
+
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .status{margin-top:10px}
+
+    /* Onboarding */
+    .ob{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50}
+    .ob.show{display:flex}
+    .ob-card{width:min(92vw,680px);background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+    .ob-steps{display:flex;gap:10px;margin:8px 0 12px;flex-wrap:wrap}
+    .step{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);padding:8px 10px;border-radius:12px}
+    .ob-actions{display:flex;gap:8px;justify-content:flex-end}
+  </style>
+</head>
+<body>
+  <script src="../js/bits.js"></script>
+
+  <header class="topbar">
+    <nav class="nav">
+      <a class="ghost" href="../">← Terug</a>
+      <div class="brand">
+        <img src="https://groep8sgdc.nl/wp-content/uploads/2022/09/s-Gravendreef-scholen07-01-18-1.png" alt="SGDC logo"/>
+        Blackjack
+      </div>
+      <div class="spacer"></div>
+      <div class="balance">Bits: <span id="bitsValue">0</span></div>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <!-- LEFT: controls -->
+    <section class="card">
+      <h2 class="title">Instellingen</h2>
+      <div class="controls">
+        <div class="row">
+          <label class="input" title="Inzet per hand">
+            <span>Inzet</span>
+            <input type="number" id="bet" min="1" step="1" value="10" inputmode="numeric"/>
+            <span class="suffix">Bits</span>
+          </label>
+          <label class="input" title="Aantal decks">
+            <span>Decks</span>
+            <select id="decks">
+              <option value="6" selected>6</option>
+              <option value="4">4</option>
+              <option value="1">1</option>
+            </select>
+          </label>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" id="dealBtn">Deel</button>
+          <button class="btn secondary" id="newShoeBtn">Nieuwe shoe</button>
+        </div>
+
+        <div class="kpis">
+          <span class="chip">Beschikbaar: <span class="kpi" id="bitsNow">0</span> Bits</span>
+          <span class="chip">Status shoe: <span class="kpi" id="shoeInfo">—</span></span>
+          <span class="chip">Payouts: <span class="kpi">Blackjack 3:2 · Win 1:1</span></span>
+        </div>
+        <p class="muted" style="margin:6px 0 0">Dealer-regel: <b>S17</b> (blijft staan op soft 17). Double op 2 kaarten. Split op paren (Azen: één kaart).</p>
+      </div>
+    </section>
+
+    <!-- RIGHT: table -->
+    <section class="table">
+      <h3>Dealer</h3>
+      <div class="zone" id="dealerZone">
+        <div class="hand" id="dealerHand">
+          <div class="sum" id="dealerSum">0</div>
+          <div class="cards" id="dealerCards"></div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:14px">Jij</h3>
+      <div class="zone" id="playerZone"></div>
+
+      <div class="actions">
+        <button class="btn primary" id="hitBtn" disabled>Hit</button>
+        <button class="btn secondary" id="standBtn" disabled>Stand</button>
+        <button class="btn secondary" id="doubleBtn" disabled>Double</button>
+        <button class="btn secondary" id="splitBtn" disabled>Split</button>
+      </div>
+      <div class="status muted" id="status">Klaar om te delen.</div>
+    </section>
+  </main>
+
+  <!-- Onboarding -->
+  <div class="ob" id="ob">
+    <div class="ob-card">
+      <h3 style="margin:0 0 6px">Welkom bij Blackjack</h3>
+      <div class="ob-steps">
+        <div class="step">🎯 Doel: dichter bij 21 dan de dealer, zonder eroverheen te gaan.</div>
+        <div class="step">🃏 Boer/Vrouw/Koning = 10 · Aas = 1 of 11</div>
+        <div class="step">▶️ Kies inzet → <b>Deel</b> → gebruik <b>Hit</b>/<b>Stand</b>/<b>Double</b>/<b>Split</b></div>
+        <div class="step">🤵 Dealer blijft staan op soft 17 (S17)</div>
+        <div class="step">💵 Blackjack betaalt 3:2</div>
+      </div>
+      <p class="muted" style="margin:0 0 10px">Tip: 8-8 en A-A altijd splitten. 12-16 stand tegen dealer 2-6, anders vaak hit.</p>
+      <div class="ob-actions">
+        <button class="btn secondary" id="obSkip">Overslaan</button>
+        <button class="btn primary" id="obStart">Ik snap het</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Bits ----------
+    Bits.onChange(v => {
+      document.getElementById('bitsValue').textContent = v;
+      document.getElementById('bitsNow').textContent = v;
+    });
+
+    // ---------- Utilities ----------
+    const rnd = (n)=> Math.floor(Math.random()*n);
+    const tutorialKey = 'sgdc.blackjack.tutorialDone';
+
+    // Card codes & images: use real photo deck (public)
+    // Mapping like "AS", "TD", "7H" -> https://deckofcardsapi.com/static/img/AS.png
+    const SUITS = ['S','H','D','C']; // spades/hearts/diamonds/clubs
+    const RANKS = ['A','2','3','4','5','6','7','8','9','0','J','Q','K']; // T=10 -> '0' code
+    function cardCode(rank, suit){ // rank like 'A','2'..,'K', suit 'S'
+      return rank + suit;
+    }
+    function cardImgURL(code){
+      // Example: AS.png, 0S.png (=10 of Spades)
+      return `https://deckofcardsapi.com/static/img/${code}.png`;
+    }
+
+    // Hand values
+    function handTotal(cards){ // returns {total, soft}
+      // Aces flexible: count as 11 then reduce
+      let total = 0, aces = 0;
+      for(const c of cards){
+        const r = c.rank;
+        if(r==='A'){ total += 11; aces++; }
+        else if(['K','Q','J','0'].includes(r)){ total += 10; }
+        else total += parseInt(r,10);
+      }
+      let soft = false;
+      while(total>21 && aces>0){ total -= 10; aces--; }
+      if(aces>0) soft = true; // at least one ace counted as 11
+      return { total, soft };
+    }
+    function isBlackjack(cards){ return cards.length===2 && handTotal(cards).total===21; }
+
+    // ---------- Shoe ----------
+    let shoe = [];
+    let decksCount = 6;
+    function buildShoe(nDecks=6){
+      const newShoe = [];
+      for(let d=0; d<nDecks; d++){
+        for(const s of SUITS){
+          for(const r of RANKS){
+            newShoe.push({rank:r, suit:s, code:cardCode(r,s)});
+          }
+        }
+      }
+      // simple shuffle
+      for(let i=newShoe.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [newShoe[i], newShoe[j]] = [newShoe[j], newShoe[i]];
+      }
+      shoe = newShoe;
+      updateShoeInfo();
+    }
+    function drawCard(){ if(shoe.length===0) buildShoe(decksCount); const c = shoe.pop(); updateShoeInfo(); return c; }
+    function shoePenetration(){ return 1 - shoe.length/(52*decksCount); }
+    function updateShoeInfo(){
+      const usedPct = Math.round(shoePenetration()*100);
+      document.getElementById('shoeInfo').textContent = `${usedPct}% gebruikt (${shoe.length} kaarten over)`;
+    }
+
+    // ---------- State ----------
+    let playerHands = []; // [{cards:[], bet, done:false, doubled:false, splitFrom:false}]
+    let dealer = { cards: [] };
+    let activeIndex = 0;
+    let phase = 'idle'; // 'idle' | 'player' | 'dealer' | 'settle'
+
+    // ---------- UI refs ----------
+    const dealerCardsEl = document.getElementById('dealerCards');
+    const dealerSumEl = document.getElementById('dealerSum');
+    const playerZone = document.getElementById('playerZone');
+    const statusEl = document.getElementById('status');
+
+    const dealBtn = document.getElementById('dealBtn');
+    const hitBtn = document.getElementById('hitBtn');
+    const standBtn = document.getElementById('standBtn');
+    const doubleBtn = document.getElementById('doubleBtn');
+    const splitBtn = document.getElementById('splitBtn');
+    const newShoeBtn = document.getElementById('newShoeBtn');
+
+    const betEl = document.getElementById('bet');
+    const decksEl = document.getElementById('decks');
+
+    // ---------- Rendering ----------
+    function imgEl(code, faceDown=false){
+      const img = document.createElement('img');
+      img.src = faceDown ? 'https://deckofcardsapi.com/static/img/back.png' : cardImgURL(code);
+      img.alt = code;
+      img.className = 'card-img'+(faceDown?' face-down':'');
+      return img;
+    }
+
+    function renderDealer(revealHole=false){
+      dealerCardsEl.innerHTML = '';
+      dealer.cards.forEach((c,i)=>{
+        const faceDown = (i===1 && !revealHole);
+        dealerCardsEl.appendChild(imgEl(c.code, faceDown));
+      });
+      const t = handTotal(dealer.cards);
+      dealerSumEl.textContent = revealHole ? t.total : (dealer.cards.length? '?':'0');
+      dealerSumEl.className = 'sum';
+      if(revealHole && t.total>21) dealerSumEl.classList.add('bust');
+      if(revealHole && isBlackjack(dealer.cards)) dealerSumEl.classList.add('blackjack','flip');
+    }
+
+    function handDiv(hand, idx){
+      const wrap = document.createElement('div');
+      wrap.className = 'hand'+(idx===activeIndex && phase==='player'?' active':'');
+      const sum = document.createElement('div'); sum.className='sum'; sum.textContent = handTotal(hand.cards).total;
+      const cs = document.createElement('div'); cs.className='cards';
+      hand.cards.forEach(c => cs.appendChild(imgEl(c.code)));
+      wrap.appendChild(sum); wrap.appendChild(cs);
+      return wrap;
+    }
+
+    function renderPlayer(){
+      playerZone.innerHTML = '';
+      playerHands.forEach((h, i)=>{
+        const el = handDiv(h, i);
+        playerZone.appendChild(el);
+        const t = handTotal(h.cards);
+        const sumEl = el.querySelector('.sum');
+        sumEl.classList.remove('bust','blackjack');
+        if(t.total>21) sumEl.classList.add('bust');
+        if(isBlackjack(h.cards)) sumEl.classList.add('blackjack');
+      });
+    }
+
+    function setActionsEnabled(hit, stand, dbl, split){
+      hitBtn.disabled = !hit;
+      standBtn.disabled = !stand;
+      doubleBtn.disabled = !dbl;
+      splitBtn.disabled = !split;
+    }
+
+    function refreshUI(){
+      renderDealer(phase!=='player'); // hole kaart dicht tijdens spelerfase
+      renderPlayer();
+      if(phase==='player'){
+        const h = playerHands[activeIndex];
+        const t = handTotal(h.cards);
+        const canHit = t.total < 21;
+        const canStand = true;
+        const canDouble = (h.cards.length===2) && Bits.get() >= h.bet;
+        const canSplit = (h.cards.length===2) && (h.cards[0].rank===h.cards[1].rank) && Bits.get() >= h.bet && playerHands.length<4;
+        setActionsEnabled(canHit, canStand, canDouble, canSplit);
+      } else {
+        setActionsEnabled(false,false,false,false);
+      }
+    }
+
+    // ---------- Flow ----------
+    function deal(){
+      if(phase!=='idle') return;
+      const bet = Math.max(1, parseInt(betEl.value,10)||10);
+      if(!Bits.spend(bet)){ statusEl.textContent='Niet genoeg Bits voor inzet'; statusEl.style.color='var(--warn)'; return; }
+
+      // Reshuffle if deep penetration
+      if(shoePenetration() > 0.75){ buildShoe(decksCount); }
+
+      dealer.cards = [];
+      playerHands = [{ cards: [], bet, doubled:false, splitFrom:false }];
+      activeIndex = 0;
+      phase = 'player';
+      statusEl.textContent = 'Jouw beurt — kies Hit/Stand/Double/Split';
+      statusEl.style.color = 'var(--muted)';
+
+      // initial deal
+      playerHands[0].cards.push(drawCard());
+      dealer.cards.push(drawCard());
+      playerHands[0].cards.push(drawCard());
+      dealer.cards.push(drawCard()); // face-down voor nu
+
+      refreshUI();
+
+      // check blackjacks
+      const pBJ = isBlackjack(playerHands[0].cards);
+      const dBJ = isBlackjack(dealer.cards);
+      if(pBJ || dBJ){
+        // Reveal dealer hole
+        renderDealer(true);
+        phase = 'settle';
+        if(pBJ && !dBJ){
+          const win = Math.floor(bet * 1.5);
+          Bits.add(bet + win); // inzet terug + winst 3:2
+          statusEl.textContent = `Blackjack! +${win} Bits (3:2)`;
+          statusEl.style.color = 'var(--good)';
+        } else if(pBJ && dBJ){
+          Bits.add(bet); // push: inzet terug
+          statusEl.textContent = 'Push: beide Blackjack — inzet terug';
+        } else {
+          statusEl.textContent = 'Dealer Blackjack — verloren';
+          statusEl.style.color = 'var(--warn)';
+        }
+        phase='idle';
+        refreshUI();
+        return;
+      }
+
+      refreshUI();
+    }
+
+    function hit(){
+      if(phase!=='player') return;
+      const h = playerHands[activeIndex];
+      h.cards.push(drawCard());
+      refreshUI();
+      const t = handTotal(h.cards).total;
+      if(t>21){
+        // bust -> volgende hand of dealer turn als laatste
+        nextHandOrDealer();
+      }
+    }
+
+    function stand(){
+      if(phase!=='player') return;
+      nextHandOrDealer();
+    }
+
+    function doubleDown(){
+      if(phase!=='player') return;
+      const h = playerHands[activeIndex];
+      if(h.cards.length!==2) return;
+      if(!Bits.spend(h.bet)){ statusEl.textContent='Niet genoeg Bits om te verdubbelen'; statusEl.style.color='var(--warn)'; return; }
+      h.bet *= 2; h.doubled = true;
+      h.cards.push(drawCard());
+      refreshUI();
+      nextHandOrDealer();
+    }
+
+    function split(){
+      if(phase!=='player') return;
+      const h = playerHands[activeIndex];
+      if(h.cards.length!==2) return;
+      if(h.cards[0].rank!==h.cards[1].rank) return;
+      if(!Bits.spend(h.bet)){ statusEl.textContent='Niet genoeg Bits om te splitten'; statusEl.style.color='var(--warn)'; return; }
+      // maak 2 handen
+      const card2 = h.cards.pop();
+      const newHand = { cards:[card2], bet:h.bet, doubled:false, splitFrom:true };
+      h.cards = [h.cards[0]];
+      // geef elk 1 extra kaart
+      h.cards.push(drawCard());
+      newHand.cards.push(drawCard());
+      playerHands.splice(activeIndex+1, 0, newHand);
+      refreshUI();
+      // (Speciale regel A-A: maar 1 kaart – voor v1 slaan we die detailregel even over; kan ik toevoegen als je wilt)
+    }
+
+    function nextHandOrDealer(){
+      // mark done if busted or stood
+      const t = handTotal(playerHands[activeIndex].cards).total;
+      // move to next not-busted hand
+      let i = activeIndex + 1;
+      while(i < playerHands.length && handTotal(playerHands[i].cards).total>21) i++;
+      if(i < playerHands.length){
+        activeIndex = i;
+        refreshUI();
+      } else {
+        dealerTurn();
+      }
+    }
+
+    function dealerTurn(){
+      phase = 'dealer';
+      // Reveal hole
+      renderDealer(true);
+      // Dealer hits until 17+ (S17 = stand on soft 17)
+      const loop = () => {
+        const t = handTotal(dealer.cards);
+        const total = t.total;
+        const isSoft17 = (total===17 && t.soft);
+        if(total<17 || isSoft17){
+          dealer.cards.push(drawCard());
+          renderDealer(true);
+          setTimeout(loop, 500);
+        } else {
+          settle();
+        }
+      };
+      setTimeout(loop, 600);
+    }
+
+    function settle(){
+      phase = 'settle';
+      const d = handTotal(dealer.cards).total;
+      let net = 0;
+      for(const h of playerHands){
+        const t = handTotal(h.cards).total;
+        if(t>21){ /* bust */ }
+        else if(d>21){ net += h.bet * 2; }
+        else if(t>d){ net += h.bet * 2; }
+        else if(t===d){ net += h.bet; } // push
+        else { /* lose */ }
+      }
+      if(net>0){
+        Bits.add(net);
+        statusEl.textContent = `Ronde klaar: +${net - playerHands.reduce((s,x)=>s+x.bet,0)} Bits winst (incl. inzet terug)`;
+        statusEl.style.color = 'var(--good)';
+      } else {
+        statusEl.textContent = `Ronde klaar: verloren`;
+        statusEl.style.color = 'var(--warn)';
+      }
+      phase = 'idle';
+      refreshUI();
+    }
+
+    // ---------- Wiring ----------
+    dealBtn.addEventListener('click', deal);
+    hitBtn.addEventListener('click', hit);
+    standBtn.addEventListener('click', stand);
+    doubleBtn.addEventListener('click', doubleDown);
+    splitBtn.addEventListener('click', split);
+
+    newShoeBtn.addEventListener('click', ()=>{
+      buildShoe(decksCount);
+      statusEl.textContent = 'Nieuwe shoe geschud';
+      statusEl.style.color = 'var(--muted)';
+    });
+
+    decksEl.addEventListener('change', ()=>{
+      decksCount = parseInt(decksEl.value,10)||6;
+      buildShoe(decksCount);
+    });
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', e=>{
+      const k = e.key.toLowerCase();
+      if(k==='h') hit();
+      if(k==='s') stand();
+      if(k==='d') doubleDown();
+      if(k==='p') split(); // p = sPlit
+      if(k===' ') deal();
+    });
+
+    // ---------- Onboarding ----------
+    const ob = document.getElementById('ob');
+    const obStart = document.getElementById('obStart');
+    const obSkip = document.getElementById('obSkip');
+    function maybeShowOnboarding(){
+      if(localStorage.getItem(tutorialKey)==='done') return;
+      ob.classList.add('show');
+    }
+    function closeOnboarding(){
+      ob.classList.remove('show');
+      localStorage.setItem(tutorialKey,'done');
+    }
+    obStart.addEventListener('click', closeOnboarding);
+    obSkip.addEventListener('click', closeOnboarding);
+
+    // ---------- Init ----------
+    buildShoe(decksCount);
+    statusEl.textContent = 'Klaar om te delen.';
+    maybeShowOnboarding();
+  </script>
+</body>
+</html>
