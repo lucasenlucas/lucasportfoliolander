@@ -4,275 +4,135 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SGDC Live — Snake</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
-
   <style>
-    :root{
-      --bg:#0e1023; --panel:#171a37; --text:#e8ecff; --muted:#a2a9d6;
-      --accent:#f4b73b; --good:#4bd37b; --warn:#ff6b6b; --border:rgba(255,255,255,.12);
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
-    a{color:inherit}
-
-    /* Topbar */
-    .topbar{position:sticky;top:0;z-index:10;background:rgba(16,18,41,.75);
-      backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
-    .nav{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:12px 16px}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
-    .logo{width:32px;height:32px;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
-    .logo img{width:100%;height:100%;object-fit:contain;background:transparent}
-    .spacer{flex:1}
-    .balance{font-weight:800;color:var(--good)}
-    .ghost{appearance:none;background:transparent;border:1px solid var(--border);color:var(--text);
-      padding:8px 12px;border-radius:10px;cursor:pointer;text-decoration:none}
-    .ghost:hover{background:rgba(255,255,255,.06)}
-
-    /* Layout */
-    .wrap{max-width:960px;margin:18px auto 40px;padding:0 16px}
-    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
-    .heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-    .sub{color:var(--muted);font-size:.95rem}
-    .limit{font-weight:700}
-    .limit.ok{color:var(--good)}
-    .limit.block{color:var(--warn)}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
-    .btn{background:var(--accent);border:none;color:#2a1b00;font-weight:800;padding:10px 14px;border-radius:12px;cursor:pointer}
+    :root{--bg:#0e1023;--panel:#171a37;--text:#e8ecff;--muted:#a2a9d6;--accent:#f4b73b;--good:#4bd37b;--warn:#ff6b6b;--border:rgba(255,255,255,.12);}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    .topbar{background:#171a37;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;position:sticky;top:0}
+    .brand{font-weight:700;display:flex;align-items:center;gap:10px}
+    .brand img{width:28px;height:28px;border-radius:6px}
+    .balance{font-weight:700;color:var(--good)}
+    .ghost{background:transparent;border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:8px;text-decoration:none}
+    .wrap{max-width:720px;margin:20px auto;padding:0 16px}
+    h1{margin-bottom:8px}
+    .info{color:var(--muted);margin-bottom:12px}
+    canvas{width:min(92vw,420px);height:min(92vw,420px);background:#0b0d25;border:1px solid var(--border);border-radius:12px;display:block;margin:20px auto}
+    .controls{text-align:center;margin:12px 0}
+    .btn{padding:8px 14px;border:none;border-radius:8px;font-weight:700;cursor:pointer;margin:0 4px}
+    .btn.start{background:var(--accent);color:#2a1b00}
     .btn:disabled{opacity:.6;cursor:not-allowed}
-    .btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
-    .muted{color:var(--muted)}
-
-    /* Canvas */
-    .canvas-wrap{display:grid;gap:10px;justify-items:center}
-    canvas{width:min(92vw,420px);height:min(92vw,420px);border-radius:12px;background:#0b0d25;border:1px solid rgba(255,255,255,.06)}
-
-    /* Toast */
-    .toast{position:fixed;right:16px;bottom:16px;background:#1b233f;color:#fff;padding:10px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);opacity:0;transform:translateY(10px);transition:.25s ease;z-index:50}
-    .toast.show{opacity:1;transform:none}
+    .toast{position:fixed;bottom:16px;right:16px;background:#1b233f;color:#fff;padding:10px 14px;border-radius:10px;opacity:0;transition:.2s}
+    .toast.show{opacity:1}
+    #limitText{margin-top:6px;font-weight:600}
   </style>
 </head>
 <body>
-  <!-- gedeelde Bits API -->
-  <script src="/js/bits.js"></script>
-  <script>
-    // Fallback als /js/bits.js ontbreekt (houdt dezelfde KEY aan):
-    (function(){
-      if (window.Bits) return;
-      const KEY = 'sgdc.bits';
-      function read(){ const v = Number(localStorage.getItem(KEY)); return Number.isFinite(v)? v : 100; }
-      function write(v){ localStorage.setItem(KEY, String(Math.max(0, Math.floor(v)))); }
-      const listeners = new Set();
-      window.Bits = {
-        get(){ return read(); },
-        set(v){ write(v); listeners.forEach(fn=>fn(read())); },
-        add(d){ window.Bits.set(read() + Math.floor(d)); },
-        spend(a){ a=Math.floor(a); if(a<=0) return true; if(read()<a) return false; window.Bits.set(read()-a); return true; },
-        onChange(fn){ listeners.add(fn); fn(read()); return ()=>listeners.delete(fn); },
-        reset(start=100){ window.Bits.set(start); }
-      };
-    })();
-  </script>
+  <!-- Bits script -->
+  <script src="../js/bits.js"></script>
 
-  <!-- Topbar -->
   <header class="topbar">
-    <nav class="nav">
-      <a class="ghost" href="/sgdc">← Ga terug</a>
-      <div class="brand">
-        <div class="logo">
-          <img src="https://groep8sgdc.nl/wp-content/uploads/2022/09/s-Gravendreef-scholen07-01-18-1.png" alt="SGDC Logo"/>
-        </div>
-        <div>Snake</div>
-      </div>
-      <div class="spacer"></div>
-      <div class="balance">Bits: <span id="bitsValue">0</span></div>
-    </nav>
+    <a href="../" class="ghost">← Terug</a>
+    <div class="brand">
+      <img src="https://groep8sgdc.nl/wp-content/uploads/2022/09/s-Gravendreef-scholen07-01-18-1.png" alt="SGDC logo">
+      Snake
+    </div>
+    <div class="balance">Bits: <span id="bitsValue">0</span></div>
   </header>
 
   <main class="wrap">
-    <section class="panel">
-      <div class="heading">
-        <h1 style="margin:0">Snake</h1>
-        <div class="limit" id="limitText">Daglimiet: 2 potjes per dag</div>
-      </div>
-      <p class="sub">
-        Besturing: Pijltjes of WASD. Spatie = start/pauze. Elke 🍎 = <b>+1 Bit</b>.
-        <br><span class="muted">Je kunt <b>maximaal 2 potjes per dag</b> spelen. Daarna wordt de startknop geblokkeerd.</span>
-      </p>
-      <div class="controls">
-        <button class="btn" id="startBtn" type="button">Start potje</button>
-        <button class="btn secondary" id="pauseBtn" type="button">Pauze</button>
-        <button class="btn secondary" id="resetBtn" type="button">Opnieuw</button>
-        <span class="muted">Score: <b id="score">0</b> · Verdiend dit potje: <b id="earned">0</b> Bits</span>
-      </div>
-      <div class="canvas-wrap">
-        <canvas id="game" width="336" height="336" tabindex="0" aria-label="Snake speelveld"></canvas>
-      </div>
-    </section>
+    <h1>Snake</h1>
+    <p class="info">
+      Besturing: Pijltjes of WASD. Spatie = start/pauze. Elke 🍎 = +1 Bit.<br>
+      Je kunt <b>maximaal 2 potjes per dag</b> spelen. Daarna wordt de startknop geblokkeerd.
+    </p>
+
+    <div class="controls">
+      <button class="btn start" id="startBtn">Start potje</button>
+      <button class="btn" id="pauseBtn">Pauze</button>
+      <button class="btn" id="resetBtn">Opnieuw</button>
+    </div>
+
+    <div class="info">
+      Score: <span id="score">0</span> · Verdiend dit potje: <span id="earned">0</span> Bits
+    </div>
+    <canvas id="game" width="336" height="336"></canvas>
+    <p id="limitText"></p>
   </main>
 
   <div class="toast" id="toast"></div>
 
-  <script>
-  'use strict';
+<script>
+  // Bits live sync
+  Bits.onChange(v => { document.getElementById("bitsValue").textContent = v; });
 
-  // ----- Bits header -----
-  const bitsEl = document.getElementById('bitsValue');
-  Bits.onChange(v => bitsEl.textContent = v);
-
-  // ----- Daglimiet (2 potjes per dag) -----
-  const MAX_GAMES = 2;
-  const DAY_KEY = (() => {
-    // lokale datum naar YYYY-MM-DD
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
-  })();
-  const COUNT_KEY = `snake.daily.${DAY_KEY}`;
-
-  function getPlayed(){ return Math.max(0, Number(localStorage.getItem(COUNT_KEY) || 0)); }
-  function incPlayed(){ localStorage.setItem(COUNT_KEY, String(getPlayed()+1)); updateLimitUI(); }
-  function remaining(){ return Math.max(0, MAX_GAMES - getPlayed()); }
-  function canPlay(){ return getPlayed() < MAX_GAMES; }
-
-  const limitText = document.getElementById('limitText');
-  const startBtn = document.getElementById('startBtn');
-  function updateLimitUI(){
-    const left = remaining();
-    if (left <= 0){
-      limitText.textContent = `Daglimiet bereikt — 0/${MAX_GAMES} over`;
-      limitText.classList.remove('ok'); limitText.classList.add('block');
-      startBtn.disabled = true;
-    } else {
-      limitText.textContent = `Daglimiet: ${MAX_GAMES} potjes — nog ${left} over vandaag`;
-      limitText.classList.remove('block'); limitText.classList.add('ok');
-      startBtn.disabled = false;
-    }
+  // Daglimiet
+  const LIMIT = 2;
+  const todayKey = "snake.plays." + new Date().toISOString().slice(0,10);
+  let playsToday = Number(localStorage.getItem(todayKey) || 0);
+  function savePlay(){ playsToday++; localStorage.setItem(todayKey, playsToday); renderLimit(); }
+  function renderLimit(){
+    const left = Math.max(0, LIMIT - playsToday);
+    const txt = document.getElementById("limitText");
+    if(left>0){ txt.textContent = `Daglimiet: ${LIMIT} potjes — nog ${left} over vandaag`; txt.style.color="var(--good)"; }
+    else{ txt.textContent = `Daglimiet bereikt — kom morgen terug`; txt.style.color="var(--warn)"; }
+    document.getElementById("startBtn").disabled = (left<=0);
   }
-  updateLimitUI();
+  renderLimit();
 
-  // ----- Snake game -----
-  const cvs = document.getElementById('game');
-  const ctx = cvs.getContext('2d');
-  const scoreEl = document.getElementById('score');
-  const earnedEl = document.getElementById('earned');
-  const pauseBtn = document.getElementById('pauseBtn');
-  const resetBtn = document.getElementById('resetBtn');
-
-  const grid = 21;                         // 21x21 cells
-  const cell = Math.floor(cvs.width / grid);
-  let loopId = null, speed = 120;
-  let snake, apple, dir, nextDir, score, earned, paused, inRun;
+  // Snake logica
+  const cvs = document.getElementById("game");
+  const ctx = cvs.getContext("2d");
+  const scoreEl = document.getElementById("score");
+  const earnedEl = document.getElementById("earned");
+  const grid = 21, cell = cvs.width/grid;
+  let loopId=null, dir={x:1,y:0}, nextDir={x:1,y:0}, speed=120;
+  let snake, apple, score, earned, paused;
 
   function rnd(n){ return Math.floor(Math.random()*n); }
-  function placeApple(){
-    let a; do { a = {x:rnd(grid), y:rnd(grid)}; } while (snake.some(s=>s.x===a.x && s.y===a.y));
-    apple = a;
-  }
-  function resetGame(){
-    snake = [{x:10,y:10}];
-    dir = {x:1,y:0}; nextDir = {x:1,y:0};
-    score = 0; earned = 0; paused = true; inRun = false;
-    placeApple(); draw(); updateHUD();
-  }
-  function updateHUD(){ scoreEl.textContent = score; earnedEl.textContent = earned; }
-
+  function placeApple(){ let a; do{ a={x:rnd(grid), y:rnd(grid)}; }while(snake.some(s=>s.x===a.x&&s.y===a.y)); apple=a; }
+  function resetGame(){ snake=[{x:10,y:10}]; dir={x:1,y:0}; nextDir={x:1,y:0}; score=0; earned=0; paused=true; placeApple(); draw(); updateUI(); }
+  function updateUI(){ scoreEl.textContent=score; earnedEl.textContent=earned; }
   function draw(){
-    // achtergrond + grid
-    ctx.fillStyle = '#0b0d25'; ctx.fillRect(0,0,cvs.width,cvs.height);
-    ctx.strokeStyle = 'rgba(255,255,255,.04)'; ctx.beginPath();
-    for(let i=0;i<=grid;i++){ ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,grid*cell); ctx.moveTo(0,i*cell); ctx.lineTo(grid*cell,i*cell); }
-    ctx.stroke();
-    // appel
-    ctx.fillStyle = '#ff4d4d'; ctx.beginPath();
-    ctx.arc((apple.x+0.5)*cell,(apple.y+0.5)*cell,cell*0.35,0,Math.PI*2); ctx.fill();
-    // slang
-    for(let i=0;i<snake.length;i++){
-      const s = snake[i];
-      ctx.fillStyle = i===0 ? '#8a7cff' : '#6476ff';
-      ctx.fillRect(s.x*cell+1, s.y*cell+1, cell-2, cell-2);
-    }
+    ctx.fillStyle="#0b0d25"; ctx.fillRect(0,0,cvs.width,cvs.height);
+    ctx.strokeStyle="rgba(255,255,255,.05)";
+    ctx.beginPath(); for(let i=0;i<=grid;i++){ ctx.moveTo(i*cell,0); ctx.lineTo(i*cell,grid*cell); ctx.moveTo(0,i*cell); ctx.lineTo(grid*cell,i*cell);} ctx.stroke();
+    ctx.fillStyle="#ff4d4d"; ctx.beginPath(); ctx.arc((apple.x+.5)*cell,(apple.y+.5)*cell,cell*.35,0,Math.PI*2); ctx.fill();
+    for(let i=0;i<snake.length;i++){ const s=snake[i]; ctx.fillStyle=i===0?"#8a7cff":"#6476ff"; ctx.fillRect(s.x*cell+1,s.y*cell+1,cell-2,cell-2); }
   }
-
   function step(){
-    if (paused) return;
-    // apply buffered direction
-    dir = nextDir;
-    const head = {x:(snake[0].x + dir.x + grid)%grid, y:(snake[0].y + dir.y + grid)%grid};
-
-    // self collision -> end
-    if (snake.some((s,i)=>i>0 && s.x===head.x && s.y===head.y)){
-      endRun(false);
-      return;
-    }
-
+    if(paused) return;
+    dir=nextDir;
+    const head={x:(snake[0].x+dir.x+grid)%grid,y:(snake[0].y+dir.y+grid)%grid};
+    if(snake.some((s,i)=>i>0&&s.x===head.x&&s.y===head.y)){ pause(); return; }
     snake.unshift(head);
-    if (head.x===apple.x && head.y===apple.y){
-      score++; earned++; Bits.add(1); toast('+1 Bit');
-      placeApple();
-    } else {
-      snake.pop();
-    }
-
-    draw(); updateHUD();
+    if(head.x===apple.x&&head.y===apple.y){ score++; earned++; Bits.add(1); showToast("+1 Bit"); placeApple(); }
+    else{ snake.pop(); }
+    draw(); updateUI();
   }
+  function loop(){ step(); loopId=setTimeout(loop,speed); }
+  function start(){ if(loopId) return; paused=false; cvs.focus(); loop(); savePlay(); }
+  function pause(){ paused=true; clearTimeout(loopId); loopId=null; }
 
-  function loop(){ step(); loopId = setTimeout(loop, speed); }
+  document.getElementById("startBtn").onclick=()=>{ start(); renderLimit(); };
+  document.getElementById("pauseBtn").onclick=()=>pause();
+  document.getElementById("resetBtn").onclick=()=>resetGame();
 
-  function startRun(){
-    if (!canPlay()){
-      toast('Daglimiet bereikt (2/2)');
-      updateLimitUI();
-      return;
-    }
-    if (inRun) return;
-    inRun = true;
-    // we rekenen een "potje" zodra je start
-    incPlayed();
-    paused = false;
-    cvs.focus();
-    loop();
-  }
-
-  function pauseRun(){ paused = true; clearTimeout(loopId); loopId = null; }
-  function endRun(won){
-    // simpel game-over; je behoudt verdiende bits al tijdens het spelen
-    pauseRun(); inRun = false;
-    toast('Game over');
-  }
-
-  // UI bindings
-  startBtn.addEventListener('click', startRun);
-  pauseBtn.addEventListener('click', ()=> { paused ? startRun() : pauseRun(); });
-  resetBtn.addEventListener('click', ()=> { pauseRun(); resetGame(); });
-
-  // keyboard
-  window.addEventListener('keydown', e=>{
-    const k = e.key.toLowerCase();
-    if(['arrowup','arrowdown','arrowleft','arrowright',' ','w','a','s','d','escape'].includes(k)) e.preventDefault();
-
-    if(['arrowup','w'].includes(k)   && dir.y!==1)  nextDir = {x:0,y:-1};
-    if(['arrowdown','s'].includes(k) && dir.y!==-1) nextDir = {x:0,y:1};
-    if(['arrowleft','a'].includes(k) && dir.x!==1)  nextDir = {x:-1,y:0};
-    if(['arrowright','d'].includes(k)&& dir.x!==-1) nextDir = {x:1,y:0};
-
-    if(k===' ') paused ? startRun() : pauseRun();
-    if(k==='escape'){ pauseRun(); }
+  window.addEventListener("keydown",e=>{
+    const k=e.key.toLowerCase();
+    if(["arrowup","w"].includes(k)&&dir.y!==1) nextDir={x:0,y:-1};
+    else if(["arrowdown","s"].includes(k)&&dir.y!==-1) nextDir={x:0,y:1};
+    else if(["arrowleft","a"].includes(k)&&dir.x!==1) nextDir={x:-1,y:0};
+    else if(["arrowright","d"].includes(k)&&dir.x!==-1) nextDir={x:1,y:0};
+    else if(k===" "){ paused?start():pause(); }
   });
 
-  // toast helper
-  const toastEl = document.getElementById('toast');
-  function toast(msg){
-    toastEl.textContent = msg;
-    toastEl.classList.add('show');
-    setTimeout(()=> toastEl.classList.remove('show'), 1200);
+  function showToast(msg){
+    const t=document.getElementById("toast");
+    t.textContent=msg; t.classList.add("show");
+    setTimeout(()=>t.classList.remove("show"),1200);
   }
 
-  // init
   resetGame();
-  </script>
+</script>
 </body>
 </html>
