@@ -10,7 +10,6 @@
       --bg:#0e1023;--panel:#171a37;--card:#141736;--text:#e8ecff;--muted:#a2a9d6;
       --accent:#f4b73b;--good:#4bd37b;--warn:#ff6b6b;--border:rgba(255,255,255,.12);
       --shadow:0 10px 30px rgba(0,0,0,.35);
-      --glow:#7c8bff;
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
@@ -32,38 +31,32 @@
     .title{margin:0 0 10px}
     .muted{color:var(--muted)}
 
-    /* Inputs */
-    .group{display:grid;gap:14px}
+    /* Compact inputs */
+    .group{display:grid;gap:12px}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .input{display:flex;align-items:center;gap:8px;background:#0b0d25;border:1px solid var(--border);border-radius:12px;padding:10px 12px;transition:.2s}
+    .input{display:flex;align-items:center;gap:8px;background:#0b0d25;border:1px solid var(--border);border-radius:12px;padding:8px 10px}
+    .input.compact{padding:6px 8px}
     .input:focus-within{border-color:#ffffff33;box-shadow:0 0 0 3px #ffffff14}
     .input input, .input select{flex:1;background:transparent;border:0;color:var(--text);font:inherit;outline:none;min-width:0}
+    .input input[type="number"]{max-width:90px}   /* kleiner veldje */
     .suffix{opacity:.9;font-weight:800}
 
     /* Buttons */
-    .btn{padding:10px 14px;border:none;border-radius:12px;font-weight:800;cursor:pointer;transition:.15s transform}
-    .btn:active{transform:translateY(1px)}
+    .btn{padding:9px 12px;border:none;border-radius:12px;font-weight:800;cursor:pointer}
     .btn.primary{background:var(--accent);color:#2a1b00}
     .btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
     .btn:disabled{opacity:.6;cursor:not-allowed}
 
-    /* KPI chips */
+    /* KPIs */
     .kpis{display:flex;flex-wrap:wrap;gap:10px}
     .chip{background:rgba(255,255,255,.08);padding:8px 10px;border-radius:12px;display:inline-flex;gap:6px;align-items:center}
     .kpi{font-weight:800}
+    .kpi.big{font-size:1.25rem}
 
-    /* Board + Animations */
+    /* Board */
     .board{position:relative;background:#0b0d25;border:1px solid var(--border);border-radius:16px;padding:14px;overflow:hidden}
-    .board::after{ /* subtle moving glow */
-      content:""; position:absolute; inset:-40% -10%; background:radial-gradient(600px 200px at var(--x,50%) var(--y,50%), rgba(124,139,255,.10), transparent 60%);
-      pointer-events:none; mix-blend-mode:screen; transition: .2s;
-      animation: glowShift 7s ease-in-out infinite alternate;
-    }
-    @keyframes glowShift{ 0%{transform:translateX(-6%)} 100%{transform:translateX(6%)} }
-
     .grid{display:grid;gap:8px;margin-top:8px;animation: boardIn .4s ease both}
-    @keyframes boardIn{ from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none} }
-
+    @keyframes boardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     .cell{
       aspect-ratio:1/1;border-radius:10px;background:#0f1330;border:1px solid rgba(255,255,255,.10);
       display:grid;place-items:center;font-size:1.25rem;font-weight:800;cursor:pointer;
@@ -72,50 +65,19 @@
     }
     .cell:hover{transform:translateY(-2px)}
     .cell.revealed{transform:rotateY(180deg)}
-    .cell.safe{background:#121a4a;box-shadow:0 0 0 0 rgba(124,139,255,0);animation:safePop .18s ease}
+    .cell.safe{background:#121a4a;animation:safePop .18s ease}
     @keyframes safePop{0%{transform:scale(.92)}100%{transform:scale(1)}}
-    .cell.safe::after{ /* sparkles */
-      content:""; position:absolute; inset:0; pointer-events:none;
-      background:
-        radial-gradient(6px 6px at 20% 30%, rgba(255,255,255,.65), transparent),
-        radial-gradient(5px 5px at 70% 40%, rgba(255,255,255,.55), transparent),
-        radial-gradient(4px 4px at 40% 70%, rgba(255,255,255,.45), transparent);
-      opacity:0; animation:sparkle .7s ease .05s both;
-    }
-    @keyframes sparkle{0%{opacity:0; transform:scale(.5)}30%{opacity:1}100%{opacity:0; transform:scale(1.4)}}
-
-    .cell.bomb{background:#3d0f1c; animation:boom .35s ease both}
-    @keyframes boom{0%{transform:translateZ(0)} 30%{transform:translateZ(0) scale(1.02)} 100%{transform:translateZ(0)}}
+    .cell.bomb{background:#3d0f1c;animation:boom .35s ease both}
+    @keyframes boom{0%{transform:translateZ(0)}30%{transform:scale(1.02)}100%{transform:none}}
     .shake{animation:shake .5s ease both}
-    @keyframes shake{
-      10%,90%{transform:translateX(-1px)}
-      20%,80%{transform:translateX(2px)}
-      30%,50%,70%{transform:translateX(-4px)}
-      40%,60%{transform:translateX(4px)}
-    }
+    @keyframes shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
 
-    /* Neon edge highlight when hovering board */
-    .board:hover{box-shadow:0 0 0 1px rgba(124,139,255,.25), 0 0 40px -12px rgba(124,139,255,.35) inset}
-
-    /* Ripple on click */
-    .ripple{
-      position:absolute; border-radius:50%; transform:translate(-50%,-50%); pointer-events:none;
-      width:8px; height:8px; background:radial-gradient(circle, rgba(255,255,255,.5), transparent 60%);
-      animation:ripple .6s ease-out forwards;
+    /* Floating multiplier on board */
+    .mult-fab{
+      position:absolute; right:12px; top:12px; background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.18); padding:8px 12px; border-radius:999px;
+      font-weight:800; backdrop-filter:blur(4px)
     }
-    @keyframes ripple{ from{opacity:.9; transform:translate(-50%,-50%) scale(.5)} to{opacity:0; transform:translate(-50%,-50%) scale(6)} }
-
-    /* Confetti */
-    .confetti{position:fixed;left:0;top:0;width:100vw;height:0;overflow:visible;pointer-events:none;z-index:20}
-    .piece{
-      position:absolute; width:8px; height:12px; opacity:.9;
-      animation:fall linear forwards;
-    }
-    @keyframes fall{
-      to{ transform:translateY(110vh) rotate(720deg); opacity:1 }
-    }
-
-    .statusline{margin-top:10px}
 
     /* Toast */
     .toast{position:fixed;bottom:16px;right:16px;background:#1b233f;color:#fff;padding:10px 14px;border-radius:10px;opacity:0;transition:.2s}
@@ -140,15 +102,15 @@
       <h2 class="title">Instellingen</h2>
 
       <div class="row">
-        <!-- Bet -->
-        <label class="input" title="Inzet in Bits">
+        <!-- Bet (compact) -->
+        <label class="input compact" title="Inzet in Bits">
           <span>Inzet</span>
           <input type="number" id="bet" min="1" step="1" value="10" inputmode="numeric" />
           <span class="suffix">Bits</span>
         </label>
 
-        <!-- Size -->
-        <label class="input" title="Rastergrootte">
+        <!-- Size (compact) -->
+        <label class="input compact" title="Rastergrootte">
           <span>Grootte</span>
           <select id="size">
             <option value="5">5×5</option>
@@ -159,10 +121,10 @@
         </label>
       </div>
 
-      <!-- Bombs INPUT (geen slider) -->
-      <label class="input" title="Aantal bommen (1 t/m N*N-1)">
+      <!-- Bombs (compact, default 1) -->
+      <label class="input compact" title="Aantal bommen (1 t/m N*N-1)">
         <span>Bommen</span>
-        <input type="number" id="bombs" min="1" step="1" value="5" inputmode="numeric" />
+        <input type="number" id="bombs" min="1" step="1" value="1" inputmode="numeric" />
         <span class="suffix" id="bombsMaxHint">max: 24</span>
       </label>
 
@@ -172,20 +134,21 @@
         <button class="btn secondary" id="resetBtn">Opnieuw</button>
       </div>
 
+      <!-- KPIs (multiplier prominent) -->
       <div class="kpis">
         <span class="chip">Beschikbaar: <span class="kpi" id="bitsNow">0</span> Bits</span>
         <span class="chip">Veilig: <span class="kpi" id="safeCount">0</span></span>
-        <span class="chip">Multiplier: <span class="kpi" id="multNow">1.00×</span></span>
+        <span class="chip">Multiplier: <span class="kpi big" id="multNow">1.00×</span></span>
         <span class="chip">Cash-out: <span class="kpi" id="payoutNow">0</span> Bits</span>
       </div>
-      <div class="statusline muted" id="statusMsg"></div>
+      <div class="muted" id="statusMsg"></div>
     </section>
 
     <!-- RIGHT: Board -->
     <section class="card board" id="boardCard">
+      <div class="mult-fab" id="multFab">1.00×</div>
       <h2 class="title" style="margin-bottom:6px">Bord</h2>
       <div id="grid" class="grid" style="grid-template-columns:repeat(5,1fr)"></div>
-      <svg class="confetti" id="confetti"></svg>
     </section>
   </main>
 
@@ -206,10 +169,10 @@
 
   const gridEl   = document.getElementById('grid');
   const board    = document.getElementById('boardCard');
-  const confetti = document.getElementById('confetti');
 
   const safeEl   = document.getElementById('safeCount');
   const multEl   = document.getElementById('multNow');
+  const multFab  = document.getElementById('multFab');
   const payoutEl = document.getElementById('payoutNow');
   const statusEl = document.getElementById('statusMsg');
 
@@ -222,127 +185,86 @@
 
   // Helpers
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-  function showToast(msg){
+  function toast(msg){
     const t=document.getElementById("toast");
     t.textContent=msg; t.classList.add("show");
-    setTimeout(()=>t.classList.remove("show"), 1200);
+    setTimeout(()=>t.classList.remove("show"),1200);
   }
-
-  // Fancy board glow follows mouse
-  board.addEventListener('pointermove', (e)=>{
-    const r = board.getBoundingClientRect();
-    const x = (e.clientX - r.left)/r.width*100;
-    const y = (e.clientY - r.top)/r.height*100;
-    board.style.setProperty('--x', x+'%');
-    board.style.setProperty('--y', y+'%');
-  });
-
-  function ripple(el, x, y){
-    const r = document.createElement('div');
-    r.className='ripple'; r.style.left=x+'px'; r.style.top=y+'px';
-    el.appendChild(r); setTimeout(()=> r.remove(), 650);
-  }
-
-  // Confetti
-  function launchConfetti(){
-    confetti.innerHTML = '';
-    const colors = ['#ffd774','#f8b93d','#8a7cff','#4bd37b','#ff6b6b','#7c8bff'];
-    const pieces = 80;
-    for(let i=0;i<pieces;i++){
-      const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-      rect.setAttribute('class','piece');
-      rect.setAttribute('x', Math.random()*window.innerWidth);
-      rect.setAttribute('y', -20 - Math.random()*200);
-      rect.setAttribute('width', 6 + Math.random()*8);
-      rect.setAttribute('height', 8 + Math.random()*10);
-      rect.setAttribute('fill', colors[i % colors.length]);
-      rect.style.animationDuration = (0.9 + Math.random()*0.9) + 's';
-      rect.style.animationDelay    = (Math.random()*0.2)+'s';
-      rect.style.transformOrigin   = 'center';
-      confetti.appendChild(rect);
+  function buildGrid(n){
+    gridEl.innerHTML=''; gridEl.style.gridTemplateColumns=`repeat(${n},1fr)`;
+    for(let i=0;i<n*n;i++){
+      const d=document.createElement('button');
+      d.type='button'; d.className='cell'; d.dataset.i=i;
+      d.addEventListener('click',()=>onCell(i,d));
+      gridEl.appendChild(d);
     }
-    // auto clear
-    setTimeout(()=> confetti.innerHTML='', 1800);
   }
 
-  // Multiplier (fair)
+  // Multiplier (fair): Π (N-i)/(S-i)
   function fairMultiplier(N,S,k){
     if(k<=0) return 1;
-    let m = 1;
+    let m=1;
     for(let i=0;i<k;i++){
-      const num = (N - i), den = (S - i);
-      if(den <= 0) return Infinity;
-      m *= (num/den);
+      const den = (S - i);
+      if(den<=0) return Infinity;
+      m *= (N - i) / den;
     }
     return m;
   }
 
-  function buildGrid(n){
-    gridEl.innerHTML=''; gridEl.style.gridTemplateColumns=`repeat(${n},1fr)`;
-    const cells = n*n;
-    for(let i=0;i<cells;i++){
-      const d=document.createElement('button');
-      d.type='button'; d.className='cell'; d.dataset.i=i;
-      d.addEventListener('click',(ev)=>onCell(i,d,ev));
-      gridEl.appendChild(d);
-      // Staggered appear
-      d.style.animation = `boardIn .4s ease ${Math.random()*0.12}s both`;
-    }
-  }
-
-  function updateLimits(){
+  function applyLimits(){
     const n = parseInt(sizeEl.value,10);
     const maxBombs = Math.max(1, n*n - 1);
     bombsEl.max = maxBombs;
-    bombsEl.value = clamp(parseInt(bombsEl.value,10)||5, 1, maxBombs);
+    bombsEl.value = clamp(parseInt(bombsEl.value,10)||1, 1, maxBombs); // default 1
     bombsHint.textContent = `max: ${maxBombs}`;
   }
 
   function updateDerived(){
     const bet = Math.max(1, parseInt(betEl.value,10) || 10);
     const n   = parseInt(sizeEl.value,10);
-    const b   = clamp(parseInt(bombsEl.value,10) || 5, 1, n*n - 1);
-    bombsEl.value = b; // ensure clamped
+    const b   = clamp(parseInt(bombsEl.value,10) || 1, 1, n*n-1);
+    bombsEl.value = b; // ensure clamp
     const N   = n*n;
     const S   = N - b;
     const k   = state?.safe ?? 0;
 
     const mult = fairMultiplier(N,S,k);
     const payout = Math.floor(bet * (mult === Infinity ? 0 : mult));
-    safeEl.textContent = k;
-    multEl.textContent = (mult === Infinity ? '∞' : mult.toFixed(2) + '×');
+
+    // UI updates (prominent)
+    const multText = (mult === Infinity ? '∞' : mult.toFixed(2) + '×');
+    multEl.textContent  = multText;
+    multFab.textContent = multText;
     payoutEl.textContent = payout;
+    safeEl.textContent   = k;
   }
 
-  // Control events
-  sizeEl.addEventListener('change', ()=>{ updateLimits(); buildGrid(parseInt(sizeEl.value,10)); updateDerived(); });
-  bombsEl.addEventListener('input',  ()=>{ updateDerived(); });
-  betEl  .addEventListener('input',  ()=>{ updateDerived(); });
+  // Events
+  sizeEl.addEventListener('change', ()=>{ applyLimits(); buildGrid(parseInt(sizeEl.value,10)); updateDerived(); });
+  bombsEl.addEventListener('input',  ()=> updateDerived());
+  betEl  .addEventListener('input',  ()=> updateDerived());
 
   // Game
   function startGame(){
     const n     = parseInt(sizeEl.value,10);
-    const bombs = clamp(parseInt(bombsEl.value,10)||5, 1, n*n-1);
+    const bombs = clamp(parseInt(bombsEl.value,10)||1, 1, n*n-1);
     const bet   = Math.max(1, parseInt(betEl.value,10)||10);
 
-    if(!Bits.spend(bet)){ statusEl.textContent='Niet genoeg Bits'; statusEl.style.color='var(--warn)'; showToast('Niet genoeg Bits'); board.classList.add('shake'); setTimeout(()=>board.classList.remove('shake'), 520); return; }
+    if(!Bits.spend(bet)){ statusEl.textContent='Niet genoeg Bits'; statusEl.style.color='var(--warn)'; toast('Niet genoeg Bits'); board.classList.add('shake'); setTimeout(()=>board.classList.remove('shake'), 520); return; }
 
     state = { n, bombs, bet, bombSet:new Set(), opened:new Set(), safe:0, playing:true };
     while(state.bombSet.size < bombs) state.bombSet.add(Math.floor(Math.random()*n*n));
     buildGrid(n);
-    cashBtn.disabled = true;
     statusEl.textContent = `Spel gestart — inzet ${bet} Bits`;
     statusEl.style.color = 'var(--muted)';
+    cashBtn.disabled = true;
     updateDerived();
   }
 
-  function onCell(i, el, ev){
+  function onCell(i, el){
     if(!state?.playing || state.opened.has(i)) return;
     state.opened.add(i);
-
-    // ripple effect
-    const r = el.getBoundingClientRect();
-    ripple(el, ev.clientX - r.left, ev.clientY - r.top);
 
     const isBomb = state.bombSet.has(i);
     el.classList.add('revealed', isBomb ? 'bomb' : 'safe');
@@ -360,9 +282,9 @@
     }
 
     state.safe++;
-    cashBtn.disabled = false;
     statusEl.textContent = 'Veilig! Je kunt nu cashen.';
     statusEl.style.color = 'var(--muted)';
+    cashBtn.disabled = false;
     updateDerived();
   }
 
@@ -372,18 +294,16 @@
     const mult = fairMultiplier(N,S,k);
     const payout = Math.floor(state.bet * (mult === Infinity ? 0 : mult));
     Bits.add(payout);
-    showToast('+'+payout+' Bits');
+    toast('+'+payout+' Bits');
     statusEl.textContent = `Uitbetaald ${payout} Bits`;
     statusEl.style.color = 'var(--good)';
     state.playing = false;
     revealAll();
     cashBtn.disabled = true;
     updateDerived();
-    launchConfetti();
   }
 
   function revealAll(){
-    const n = state.n;
     Array.from(gridEl.children).forEach((cell, idx) => {
       const isBomb = state.bombSet.has(idx);
       if(isBomb){ cell.textContent='💣'; cell.classList.add('revealed','bomb'); }
@@ -401,12 +321,12 @@
   }
 
   // Buttons
-  startBtn.addEventListener('click', startGame);
-  cashBtn .addEventListener('click', cashOut);
-  resetBtn.addEventListener('click', resetUI);
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('cashBtn').addEventListener('click', cashOut);
+  document.getElementById('resetBtn').addEventListener('click', resetUI);
 
   // Init
-  updateLimits();
+  applyLimits();
   buildGrid(parseInt(sizeEl.value,10));
   updateDerived();
 </script>
