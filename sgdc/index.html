@@ -3,70 +3,122 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SGDC Live</title>
+  <title>SGDC Live — Home</title>
+
+  <!-- (optioneel) Base voor consistente paden binnen /sgdc/ -->
+  <!-- <base href="/sgdc/"> -->
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="https://groep8sgdc.nl/wp-content/uploads/2022/09/s-Gravendreef-scholen07-01-18-1.png" />
+
   <style>
-    :root{--bg:#0e1023;--panel:#171a37;--text:#e8ecff;--muted:#a2a9d6;--good:#4bd37b;--shadow:0 6px 20px rgba(0,0,0,.35);}
-    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
-    .topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:#171a37;position:sticky;top:0}
-    .brand{font-weight:800;font-size:1.2rem;display:flex;align-items:center;gap:10px}
-    .brand img{width:36px;height:36px;border-radius:8px}
-    .balance{font-weight:700;color:var(--good)}
-    main{max-width:1100px;margin:20px auto;padding:0 16px}
-    h1{margin-bottom:8px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px;margin-top:20px}
-    .game{background:var(--panel);border-radius:16px;padding:20px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;transition:.2s}
-    .game:hover{transform:translateY(-4px)}
-    .game h2{margin:12px 0 6px;font-size:1.2rem}
-    .pill{background:rgba(255,255,255,.08);padding:6px 12px;border-radius:999px;font-size:.8rem;color:var(--muted)}
+    :root{
+      --bg:#0e1023; --panel:#171a37; --text:#e8ecff; --muted:#a2a9d6;
+      --brand:#8a7cff; --accent:#f4b73b; --good:#4bd37b; --shadow:0 10px 30px rgba(0,0,0,.35);
+      --border:rgba(255,255,255,.10);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+
+    /* Topbar */
+    .nav-wrap{position:sticky;top:0;z-index:50;background:rgba(16,18,41,.75);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08)}
+    .nav{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 16px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+    .brand .logo{width:38px;height:38px;border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+    .brand .logo img{display:block;width:100%;height:100%;object-fit:contain;background:transparent}
+    .spacer{flex:1}
+    .balance{font-weight:800;color:var(--good);white-space:nowrap}
+
+    .container{max-width:1200px;margin:0 auto;padding:20px 16px 56px}
+
+    /* Game buttons grid (oude layout) */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:22px;margin-top:18px}
+    .game-btn{
+      display:block; text-decoration:none; color:var(--text); border-radius:20px; overflow:hidden;
+      min-height:220px; background:var(--panel); box-shadow:var(--shadow); border:1px solid var(--border);
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      cursor:pointer;
+    }
+    .game-btn:hover, .game-btn:focus-visible{
+      transform:translateY(-3px); outline:none; border-color:rgba(255,255,255,.20);
+      box-shadow:0 16px 36px rgba(0,0,0,.45)
+    }
+    .g-thumb{aspect-ratio:16/10;display:grid;place-items:center;font-weight:800;font-size:1.2rem}
+    .g-body{padding:16px;display:flex;align-items:center;justify-content:space-between}
+    .pill{background:rgba(255,255,255,.10);padding:6px 10px;border-radius:999px;font-size:.78rem;color:var(--muted)}
+    .soon .pill{background:rgba(255,255,255,.06);color:#c9c9ff}
+    .soon{opacity:.6;pointer-events:none}
+
+    /* Footer hint */
+    .hint{color:var(--muted); margin-top:16px; font-size:.92rem}
   </style>
 </head>
 <body>
-  <!-- Bits script -->
+  <!-- Bits (RELATIEF pad voor /sgdc/) -->
   <script src="js/bits.js"></script>
 
-  <header class="topbar">
-    <div class="brand">
-      <img src="https://groep8sgdc.nl/wp-content/uploads/2022/09/s-Gravendreef-scholen07-01-18-1.png" alt="SGDC logo">
-      SGDC Live
-    </div>
-    <div class="balance">Bits: <span id="bitsValue">0</span></div>
-  </header>
+  <!-- Topbar -->
+  <div class="nav-wrap">
+    <nav class="nav">
+      <div class="brand">
+        <div class="logo">
+          <img src="https://groep8sgdc.nl/wp-content/uploads/2022/09/s-Gravendreef-scholen07-01-18-1.png" alt="SGDC Logo" />
+        </div>
+        <div>SGDC Live</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="balance">Bits: <span id="bitsValue">0</span></div>
+    </nav>
+  </div>
 
-  <main>
-    <h1>SGDC Originals</h1>
-    <p>Kies een game. Je Bits staan overal lokaal en synchroniseren tussen pagina’s.</p>
-    <section class="grid">
-      <a href="snake/" class="game">
-        <h2>Snake</h2>
-        <span class="pill">Nu spelen</span>
+  <!-- Content -->
+  <main class="container">
+    <h1 style="margin:0 0 6px">SGDC Originals</h1>
+    <p class="hint">Kies een game. Je Bits staan overal lokaal en synchroniseren tussen pagina’s.</p>
+
+    <section class="grid" aria-label="Games">
+      <a class="game-btn" href="snake/" role="button" aria-label="Speel Snake">
+        <div class="g-thumb" style="background:linear-gradient(160deg,#50e3c2,#8a7cff)">Snake</div>
+        <div class="g-body"><strong>Snake</strong><span class="pill">Nu spelen</span></div>
       </a>
-      <a href="mine/" class="game">
-        <h2>Mines</h2>
-        <span class="pill">Nu spelen</span>
+
+      <a class="game-btn" href="mine/" role="button" aria-label="Speel Mines">
+        <div class="g-thumb" style="background:linear-gradient(160deg,#ffe36d,#ff9f4d)">Mines</div>
+        <div class="g-body"><strong>Mines</strong><span class="pill">Nu spelen</span></div>
       </a>
-      <div class="game">
-        <h2>Plinko</h2>
-        <span class="pill">Komt binnenkort</span>
-      </div>
-      <div class="game">
-        <h2>Crash</h2>
-        <span class="pill">Komt binnenkort</span>
-      </div>
-      <div class="game">
-        <h2>Blackjack</h2>
-        <span class="pill">Komt binnenkort</span>
-      </div>
-      <div class="game">
-        <h2>Roulette</h2>
-        <span class="pill">Komt binnenkort</span>
-      </div>
+
+      <a class="game-btn soon" href="#" role="button" aria-disabled="true">
+        <div class="g-thumb" style="background:linear-gradient(160deg,#7b6dff,#f453a1)">Plinko</div>
+        <div class="g-body"><strong>Plinko</strong><span class="pill">Komt binnenkort</span></div>
+      </a>
+
+      <a class="game-btn soon" href="#" role="button" aria-disabled="true">
+        <div class="g-thumb" style="background:linear-gradient(160deg,#4ad8d0,#7b6dff)">Crash</div>
+        <div class="g-body"><strong>Crash</strong><span class="pill">Komt binnenkort</span></div>
+      </a>
+
+      <a class="game-btn soon" href="#" role="button" aria-disabled="true">
+        <div class="g-thumb" style="background:linear-gradient(160deg,#ff5386,#ff8a3d)">Blackjack</div>
+        <div class="g-body"><strong>Blackjack</strong><span class="pill">Komt binnenkort</span></div>
+      </a>
+
+      <a class="game-btn soon" href="#" role="button" aria-disabled="true">
+        <div class="g-thumb" style="background:linear-gradient(160deg,#7b6dff,#f453a1)">Roulette</div>
+        <div class="g-body"><strong>Roulette</strong><span class="pill">Komt binnenkort</span></div>
+      </a>
     </section>
   </main>
 
   <script>
+    // Bits aan header koppelen
     Bits.onChange(v => {
-      document.getElementById("bitsValue").textContent = v;
+      const el = document.getElementById('bitsValue');
+      if (el) el.textContent = v;
     });
   </script>
 </body>
