@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SGDC Live — Home</title>
 
-  <!-- (optioneel) Base voor consistente paden binnen /sgdc/ -->
-  <!-- <base href="/sgdc/"> -->
-
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -36,7 +33,7 @@
 
     .container{max-width:1200px;margin:0 auto;padding:20px 16px 56px}
 
-    /* Game buttons grid (oude layout) */
+    /* Game buttons grid */
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:22px;margin-top:18px}
     .game-btn{
       display:block; text-decoration:none; color:var(--text); border-radius:20px; overflow:hidden;
@@ -59,7 +56,7 @@
   </style>
 </head>
 <body>
-  <!-- Bits (RELATIEF pad voor /sgdc/) -->
+  <!-- Bits -->
   <script src="js/bits.js"></script>
 
   <!-- Topbar -->
@@ -97,9 +94,10 @@
         <div class="g-body"><strong>Plinko</strong><span class="pill">Komt binnenkort</span></div>
       </a>
 
-      <a class="game-btn soon" href="#" role="button" aria-disabled="true">
+      <!-- ✅ Crash unlocked -->
+      <a class="game-btn" href="crash/index.html" role="button" aria-label="Speel Crash">
         <div class="g-thumb" style="background:linear-gradient(160deg,#4ad8d0,#7b6dff)">Crash</div>
-        <div class="g-body"><strong>Crash</strong><span class="pill">Komt binnenkort</span></div>
+        <div class="g-body"><strong>Crash</strong><span class="pill">Speel nu</span></div>
       </a>
 
       <a class="game-btn soon" href="blackjack/" role="button" aria-label="Speel Blackjack">
