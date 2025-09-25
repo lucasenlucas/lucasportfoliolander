@@ -1,9 +1,9 @@
-/*  SGDC Market Core — shared by /market pages
+/*  SGDC Market Core — v1.1
     - Assets & meta
     - Bits helpers
     - Portfolio + orders (buy/sell/swap)
-    - Price simulation + history
-    - Market index (% vs yesterday) with "hold" feel handled by pages
+    - Price simulation + seeded history
+    - Market index (% vs yesterday)
 */
 window.Market = (function(){
   // ----- Coin meta (10 stuks) -----
@@ -40,40 +40,77 @@ window.Market = (function(){
   let assets = {}; // {SYM:{price, anchor, vol, yClose}}
   function symbols(){ return Object.keys(meta); }
 
-  function initAssets(){
-    const existing = LS.get(assetsKey, null);
-    if(existing){
-      assets = existing;
-      return;
+  // create a nice long seeded history for charts (about ~2000 ticks)
+  function seedHistoryArray(startPrice, vol, anchor){
+    const N = 2000;              // ~ long-term series (covers 'all')
+    const data = new Array(N);
+    let p = startPrice;
+    for(let i=0;i<N;i++){
+      // base random walk + mean reversion
+      const r = (Math.random()*2-1) * (vol*0.9); // slightly softer during seed
+      const theta = 0.02;
+      p = p * (1 + r) + theta*(anchor - p);
+
+      // gentle thematic nudges so het lijkt “echt”
+      const hour = i % 720; // pseudo "minute of trading day"
+      // small midday uptick
+      if(hour>330 && hour<390) p *= 1.0006;
+      // end-of-day fade
+      if(hour>650 && hour<720) p *= 0.9996;
+
+      // clamp and round
+      p = Math.max(1, +p.toFixed(2));
+      data[i] = p;
     }
-    // Seed initial prices & yClose
-    const seeded = {};
-    const seed = {
-      SNK:95, FRIK:42, COKE:60, BBIT:33, HWK:21, TCH:78, WIFI:54, CHAIR:18, CHZB:12, PPLX:140
-    };
-    symbols().forEach(sym=>{
-      const p = seed[sym] ?? 50;
-      const anchor = p; // mean reversion centrum
-      const vol = { SNK:.007, FRIK:.012, COKE:.010, BBIT:.008, HWK:.005, TCH:.009, WIFI:.014, CHAIR:.006, CHZB:.004, PPLX:.018 }[sym] || .008;
-      // maak yClose iets anders voor "gisteren"-referentie
-      const yClose = +(p*(1 + (Math.random()*2-1)*0.02)).toFixed(2);
-      seeded[sym] = { price:p, anchor, vol, yClose };
-      // history bootstrap
-      LS.set(histPrefix+sym, Array.from({length:180}, (_,i)=> +(p*(1 + (i-180)/5000)).toFixed(2)));
-    });
-    assets = seeded;
-    LS.set(assetsKey, assets);
+    return data;
   }
 
-  // ----- History -----
+  function setHistory(sym, arr){ LS.set(histPrefix+sym, arr); }
   function pushHistory(sym, price){
     const key = histPrefix+sym;
     const arr = LS.get(key, []);
     arr.push(+price.toFixed(2));
-    if(arr.length>2000) arr.shift();
+    if(arr.length>3000) arr.shift();
     LS.set(key, arr);
   }
   function history(sym){ return LS.get(histPrefix+sym, []); }
+
+  function initAssets(force=false){
+    const existing = LS.get(assetsKey, null);
+    if(existing && !force){
+      assets = existing;
+      // ensure all known symbols exist; if not, (re)seed them
+      for(const sym of symbols()){
+        if(!assets[sym]){
+          const seedPrice = 50 + Math.random()*100;
+          const vol = .008;
+          assets[sym] = {price:+seedPrice.toFixed(2), anchor:+seedPrice.toFixed(2), vol, yClose:+seedPrice.toFixed(2)};
+        }
+      }
+      LS.set(assetsKey, assets);
+      return;
+    }
+    // Fresh seed
+    const seeded = {};
+    const seedStart = { SNK:95, FRIK:42, COKE:60, BBIT:33, HWK:21, TCH:78, WIFI:54, CHAIR:18, CHZB:12, PPLX:140 };
+    const volMap =  { SNK:.007, FRIK:.012, COKE:.010, BBIT:.008, HWK:.005, TCH:.009, WIFI:.014, CHAIR:.006, CHZB:.004, PPLX:.018 };
+    symbols().forEach(sym=>{
+      const p0 = seedStart[sym] ?? 50;
+      const anchor = p0;
+      const vol = volMap[sym] || .008;
+
+      // “gisteren” iets anders, zodat % vandaag zinnig is
+      const yClose = +(p0*(1 + (Math.random()*2-1)*0.02)).toFixed(2);
+
+      // maak uitgebreide geschiedenis die eindigt bij p0
+      const hist = seedHistoryArray(p0, vol, anchor);
+      setHistory(sym, hist);
+
+      seeded[sym] = { price:p0, anchor, vol, yClose };
+    });
+    assets = seeded;
+    LS.set(assetsKey, assets);
+  }
 
   // ----- Market Index (now vs yesterday) -----
   function indexNowY(){
@@ -140,7 +177,6 @@ window.Market = (function(){
     if(fromSym===toSym) return {ok:false, msg:'Zelfde asset.'};
     const s1 = sell(fromSym, qty);
     if(!s1.ok) return s1;
-    // koop zoveel mogelijk stuks van target met huidige Bits
     const a = assets[toSym];
     const buyable = Math.floor(bits.get() / (a.price*(1+fee)));
     if(buyable<=0) return {ok:true, msg:`Verkocht ${qty} ${fromSym}. Niet genoeg Bits om ${toSym} te kopen na fees.`};
@@ -156,10 +192,9 @@ window.Market = (function(){
     const theta = 0.02;
     let p = a.price * (1 + r) + theta*(a.anchor - a.price);
 
-    // thematische impulsen (heel simpel)
+    // thematische impulsen
     const now = new Date();
-    const h = now.getHours(), m = now.getMinutes();
-    const tmin = h*60+m;
+    const tmin = now.getHours()*60 + now.getMinutes();
 
     if(sym==='SNK' || sym==='FRIK'){ // pauzes boost
       if((tmin>=630 && tmin<=660) || (tmin>=750 && tmin<=780)) p *= 1.002;
@@ -188,10 +223,13 @@ window.Market = (function(){
     if(!localStorage.getItem(bitsKey)) bits.set(1000);
     // Assets & history
     initAssets();
-    // Ensure recent price appended each second in history (if not already)
+    // Ensure histories exist (older installs fallback)
     symbols().forEach(sym=>{
       const h = history(sym);
-      if(!h.length) pushHistory(sym, assets[sym].price);
+      if(!h.length){
+        const a = assets[sym];
+        setHistory(sym, seedHistoryArray(a.price, a.vol, a.anchor));
+      }
     });
   }
 
