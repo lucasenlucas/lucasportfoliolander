@@ -43,7 +43,7 @@
     <h1>Snake</h1>
     <p class="info">
       Besturing: Pijltjes of WASD. Spatie = start/pauze. Elke 🍎 = +1 Bit.<br>
-      Je kunt <b>maximaal 2 potjes per dag</b> spelen. Daarna wordt de startknop geblokkeerd.
+      Je kunt <b>maximaal 5 potjes per dag</b> spelen. Daarna wordt de startknop geblokkeerd.
     </p>
 
     <div class="controls">
@@ -66,7 +66,7 @@
   Bits.onChange(v => { document.getElementById("bitsValue").textContent = v; });
 
   // Daglimiet
-  const LIMIT = 2;
+  const LIMIT = 5;
   const todayKey = "snake.plays." + new Date().toISOString().slice(0,10);
   let playsToday = Number(localStorage.getItem(todayKey) || 0);
   function savePlay(){ playsToday++; localStorage.setItem(todayKey, playsToday); renderLimit(); }
