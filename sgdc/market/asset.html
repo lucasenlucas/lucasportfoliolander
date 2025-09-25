@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SGDC Live — Asset</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --bg:#0E1023; --panel:#15193A; --card:#131736; --text:#E9ECFF; --muted:#A3A9D8;
+    --good:#4BD37B; --bad:#FF6B6B; --pill:#FFFFFF1A; --border:#FFFFFF1A; --shadow:0 18px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;background:radial-gradient(1200px 600px at 10% -10%,#14183d 0,#0E1023 60%);color:var(--text)}
+  .nav{max-width:1200px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:10px}
+  .back{border:1px solid var(--border);background:#ffffff14;padding:8px 12px;border-radius:12px;text-decoration:none;color:var(--text);font-weight:700}
+  .spacer{flex:1}
+  .balance{font-weight:800;color:var(--good)}
+  .container{max-width:1200px;margin:0 auto;padding:18px 16px 60px}
+  .head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .title{font-weight:800;font-size:22px}
+  .ticker{font-size:12px;color:var(--muted)}
+  .pill{background:#ffffff1a;border:1px solid var(--border);padding:6px 10px;border-radius:999px;font-size:12px}
+  .pill.up{color:var(--good)} .pill.down{color:var(--bad)}
+  .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:16px}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr } }
+  .card{background:linear-gradient(180deg,var(--card),#101432);border:1px solid var(--border);border-radius:18px;padding:14px;box-shadow:var(--shadow)}
+  canvas{width:100%;height:280px;display:block}
+  .tf{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .btn{padding:8px 12px;border-radius:12px;border:1px solid var(--border);background:#ffffff14;color:var(--text);cursor:pointer;font-weight:700}
+  .btn.active{background:#ffffff26}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  input[type=number]{background:#0f1330;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .buy{background:linear-gradient(90deg,#37d87c,#2bb56a);border:none}
+  .sell{background:#ffd66b;border:none;color:#0d0b06}
+  .swap{background:#9c7cff;border:none}
+  .small{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="back" href="./">← Terug</a>
+    <div class="spacer"></div>
+    <div class="balance">Bits: <span id="bitsHeader">0</span></div>
+  </nav>
+
+  <main class="container">
+    <div class="head">
+      <div id="icon" class="pill">📦</div>
+      <div class="title" id="name">Asset</div>
+      <div class="ticker" id="ticker">TICK</div>
+      <div class="pill" id="dayDelta">+0.00%</div>
+      <div class="pill" id="price">₿0.00</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <canvas id="chart" width="1000" height="280"></canvas>
+        <div class="tf">
+          <button class="btn active" data-tf="1h">1h</button>
+          <button class="btn" data-tf="1d">1d</button>
+          <button class="btn" data-tf="1w">1w</button>
+          <button class="btn" data-tf="1m">1m</button>
+          <button class="btn" data-tf="all">All</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label>Koop — bedrag in Bits</label>
+          <input type="number" id="buyBits" min="1" value="10"/>
+          <div class="small">Fee: <span id="feeBuy">0.50%</span></div>
+          <div class="actions">
+            <button class="btn buy" id="btnBuy">Kopen</button>
+            <button class="btn swap" id="btnSwap">Swap naar…</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Verkoop — aantal stuks</label>
+          <input type="number" id="sellQty" min="1" value="1"/>
+          <div class="actions">
+            <button class="btn sell" id="btnSell">Verkopen</button>
+          </div>
+          <div class="small">Jouw positie: <span id="posInfo">0 stuks @ ₿0.00</span></div>
+        </div>
+
+        <div class="field">
+          <label>Storten/Opnemen (debug / event)</label>
+          <div class="actions">
+            <button class="btn" id="btnDeposit">+100 Bits</button>
+            <button class="btn" id="btnWithdraw">-100 Bits</button>
+          </div>
+        </div>
+
+        <div class="small" id="hint"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="title" style="font-size:18px">Over deze coin</div>
+      <div id="about" class="small" style="margin-top:8px"></div>
+    </div>
+  </main>
+
+<script>
+/* ===== Asset detail — inline (dezelfde kern als index) ===== */
+const LS={ get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}}, set(k,v){localStorage.setItem(k,JSON.stringify(v))} };
+const bitsKey='bitsBalance', assetsKey='market.assets', portfolioKey='portfolio', histPrefix='market.history.';
+const BitsAdapter=(function(){ const has=window.Bits&&typeof window.Bits.get==='function'&&typeof window.Bits.set==='function'; const listeners=[]; function emit(){listeners.forEach(fn=>{try{fn(api.get())}catch{}})}; const api={ get(){return has?Math.floor(window.Bits.get()):(parseInt(localStorage.getItem(bitsKey)||'0',10)||0)}, set(v){const nv=Math.max(0,Math.floor(v)); if(has){window.Bits.set(nv)}else{localStorage.setItem(bitsKey,String(nv))} emit()}, onChange(fn){listeners.push(fn); if(has&&typeof window.Bits.onChange==='function') window.Bits.onChange(fn);} }; return api; })();
+const Meta={SNK:{name:"Snacko",icon:"🍪",vol:.006,seed:95,about:["Alles uit de kantine in één mandje.","Lichte stijging rond pauzes; zakt na schooltijd.","Volatiliteit: laag-middel"]},FRIK:{name:"Frikandelium",icon:"🌭",vol:.010,seed:42,about:["Knettervolatiel als de frituur aanslaat.","Spikes rond pauze-tijden.","Volatiliteit: hoog"]},COKE:{name:"ColaCap",icon:"🥤",vol:.009,seed:60,about:["Bruisende koers, soms te veel bubbels.","Microrally’s om het halve uur.","Volatiliteit: middel-hoog"]},BBIT:{name:"Bitterbit",icon:"🟤",vol:.007,seed:33,about:["Krokant rendement of verbrand je vingers.","Range-bound met af en toe knal.","Volatiliteit: middel"]},HWK:{name:"HwCoin",icon:"📚",vol:.004,seed:21,about:["Altijd beetje bearish… tenzij studiedag.","Langzame daling; soms boost.","Volatiliteit: laag"]},TCH:{name:"TeachToken",icon:"👩‍🏫",vol:.008,seed:78,about:["Gaat omhoog bij proefwerken.","Corrigeert daarna.","Volatiliteit: middel"]},WIFI:{name:"LaggyFi",icon:"📶",vol:.012,seed:54,about:["Soms maan, soms modem uit 2003.","Gaps & freezes af en toe.","Volatiliteit: hoog"]},CHAIR:{name:"ChairChain",icon:"🪑",vol:.005,seed:18,about:["Elke kraak is een kans.","Mean-revert langzaam.","Volatiliteit: laag-middel"]},CHZB:{name:"CheezeBread",icon:"🧀",vol:.003,seed:12,about:["Simpel, zout, verrassend steady.","Kleine intraday swing.","Volatiliteit: laag"]},PPLX:{name:"PartyPlex",icon:"🎉",vol:.015,seed:140,about:["Explodeert voor feesten, implodeert erna.","Harde run-ups & dumps.","Volatiliteit: zeer hoog"]}};
+const Symbols=Object.keys(Meta);
+function Hkey(sym){return histPrefix+sym;}
+let Assets=LS.get(assetsKey,null)||{};
+if(!Object.keys(Assets).length){ // seed if user opened detail page first
+  Symbols.forEach(sym=>{ const m=Meta[sym]; const p0=m.seed; const anchor=p0; const vol=m.vol; const yClose=+(p0*(1+(Math.random()*2-1)*0.02)).toFixed(2); LS.set(Hkey(sym), Array.from({length:2000},(_,i)=>p0)); Assets[sym]={price:p0,anchor:anchor,vol:vol,yClose:yClose}; });
+  LS.set(assetsKey,Assets);
+}
+function getHistory(sym){ return LS.get(Hkey(sym),[]); }
+function indexNowY(){ const now=Symbols.reduce((s,k)=>s+Assets[k].price,0)/Symbols.length; const y=Symbols.reduce((s,k)=>s+Assets[k].yClose,0)/Symbols.length; return {now,y}; }
+function portfolio(){ return LS.get(portfolioKey,{}); }
+function setPortfolio(p){ LS.set(portfolioKey,p); }
+const Fee=0.005;
+function buy(sym,qty){ qty=Math.floor(qty); if(qty<=0) return {ok:false,msg:'Ongeldige hoeveelheid.'}; const a=Assets[sym]; if(!a) return {ok:false,msg:'Onbekend asset.'}; const cost=Math.ceil(qty*a.price*(1+Fee)); if(BitsAdapter.get()<cost) return {ok:false,msg:'Onvoldoende Bits.'}; BitsAdapter.set(BitsAdapter.get()-cost); const p=portfolio(); const pos=p[sym]||{qty:0,avg:0}; const newQty=pos.qty+qty; const newAvg=(pos.qty*pos.avg+qty*a.price)/newQty; p[sym]={qty:newQty,avg:+newAvg.toFixed(2)}; setPortfolio(p); return {ok:true,msg:`Kocht ${qty} ${sym} @ ₿${a.price.toFixed(2)} (fee ${(Fee*100).toFixed(2)}%)`}; }
+function sell(sym,qty){ qty=Math.floor(qty); if(qty<=0) return {ok:false,msg:'Ongeldige hoeveelheid.'}; const a=Assets[sym]; if(!a) return {ok:false,msg:'Onbekend asset.'}; const p=portfolio(); const pos=p[sym]; if(!pos||pos.qty<qty) return {ok:false,msg:'Niet genoeg positie.'}; const proceeds=Math.floor(qty*a.price*(1-Fee)); BitsAdapter.set(BitsAdapter.get()+proceeds); const newQty=pos.qty-qty; if(newQty<=0) delete p[sym]; else p[sym]={qty:newQty,avg:pos.avg}; setPortfolio(p); const pl=(a.price-pos.avg)*qty-(qty*a.price*Fee); return {ok:true,msg:`Verkocht ${qty} ${sym} @ ₿${a.price.toFixed(2)} (P/L ${pl>=0?'+':''}${pl.toFixed(2)})`}; }
+function swap(fromSym,toSym,qty){ if(fromSym===toSym) return {ok:false,msg:'Zelfde asset.'}; const s1=sell(fromSym,qty); if(!s1.ok) return s1; const a=Assets[toSym]; const buyable=Math.floor(BitsAdapter.get()/(a.price*(1+Fee))); if(buyable<=0) return {ok:true,msg:`Verkocht ${qty} ${fromSym}. Niet genoeg Bits om ${toSym} te kopen na fees.`}; buy(toSym,buyable); return {ok:true,msg:`Swap: -${qty} ${fromSym}, +${buyable} ${toSym}.`}; }
+
+(function main(){
+  const params=new URLSearchParams(location.search); const sym=params.get('symbol')||'SNK'; const m=Meta[sym]||{name:sym,icon:'📦',about:[]}; const a=Assets[sym];
+  // Header
+  document.getElementById('bitsHeader').textContent=BitsAdapter.get();
+  document.getElementById('icon').textContent=m.icon; document.getElementById('name').textContent=m.name; document.getElementById('ticker').textContent=sym;
+  document.getElementById('price').textContent='₿'+a.price.toFixed(2);
+  const pct=((a.price-a.yClose)/a.yClose)*100; const dd=document.getElementById('dayDelta'); dd.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; dd.className='pill '+(pct>=0?'up':'down');
+  document.getElementById('about').innerHTML = m.about.map(s=>`<div>${s}</div>`).join('');
+  const pos=portfolio()[sym]||{qty:0,avg:0}; document.getElementById('posInfo').textContent=`${pos.qty} stuks @ ₿${pos.avg.toFixed(2)}`;
+  document.getElementById('feeBuy').textContent=(Fee*100).toFixed(2)+'%';
+
+  // Chart
+  const c=document.getElementById('chart'); const ctx=c.getContext('2d');
+  function draw(tf='1h'){
+    ctx.clearRect(0,0,c.width,c.height);
+    const hist=getHistory(sym); if(!hist.length) return;
+    const map={'1h':120,'1d':720,'1w':720*5,'1m':720*20,'all':hist.length}; const take=Math.min(map[tf]||hist.length,hist.length);
+    const data=hist.slice(-take);
+    const min=Math.min(...data), max=Math.max(...data); const pad=8, W=c.width, H=c.height;
+    ctx.globalAlpha=.12; ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.moveTo(pad,H/2); ctx.lineTo(W-pad,H/2); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.beginPath();
+    data.forEach((v,i)=>{ const x=pad+(i/(data.length-1))*(W-2*pad); const y=H-pad-((v-min)/(max-min||1))*(H-2*pad); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+    ctx.lineWidth=2; ctx.strokeStyle='#8a7cff'; ctx.stroke();
+    const last=data[data.length-1]; const xLast=pad+(data.length-1)/(data.length-1)*(W-2*pad); const yLast=H-pad-((last-min)/(max-min||1))*(H-2*pad);
+    ctx.fillStyle='#ffd66b'; ctx.beginPath(); ctx.arc(xLast,yLast,3,0,Math.PI*2); ctx.fill();
+  }
+  document.querySelectorAll('.tf .btn').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tf .btn').forEach(x=>x.classList.toggle('active',x===b)); draw(b.dataset.tf); });
+  draw('1h');
+
+  // Actions
+  document.getElementById('btnBuy').onclick=()=>{ const bits=Math.max(1,Math.floor(Number(document.getElementById('buyBits').value||0))); const qty=Math.floor(bits/(a.price*(1+Fee))); if(qty<=0){alert('Te weinig Bits voor minimaal 1 stuk.');return;} const res=buy(sym,qty); if(!res.ok) alert(res.msg); refresh(); };
+  document.getElementById('btnSell').onclick=()=>{ const qty=Math.max(1,Math.floor(Number(document.getElementById('sellQty').value||0))); const res=sell(sym,qty); if(!res.ok) alert(res.msg); refresh(); };
+  document.getElementById('btnDeposit').onclick=()=>{ BitsAdapter.set(BitsAdapter.get()+100); refreshBits(); };
+  document.getElementById('btnWithdraw').onclick=()=>{ BitsAdapter.set(Math.max(0,BitsAdapter.get()-100)); refreshBits(); };
+  document.getElementById('btnSwap').onclick=()=>{ const target=prompt('Swap naar symbol (SNK, FRIK, ...):','SNK'); if(!target || !Assets[target]){ alert('Onbekend target.'); return; } const qty=Math.max(1,Math.floor(Number(prompt('Aantal te swappen:','1')||0))); const res=swap(sym,target,qty); alert(res.msg); refresh(); };
+
+  // Live refresh
+  BitsAdapter.onChange(()=>{ refreshBits(); });
+  setInterval(()=>{ // prijzen updaten (2s) + UI (1.5s)
+    // prijs updaten via index.html loop (als open). Als alleen asset open is, doen we lichte self-tick:
+    const aHere=Assets[sym]; if(aHere){ /* mini drift so grafiek loopt ook op detail-only view */ const r=(Math.random()*2-1)*aHere.vol*0.3; aHere.price=Math.max(1, +(aHere.price*(1+r)).toFixed(2)); const h=LS.get(histPrefix+sym,[]); h.push(aHere.price); if(h.length>3000) h.shift(); LS.set(histPrefix+sym,h); LS.set(assetsKey,Assets); }
+  },2000);
+  setInterval(()=>{ document.getElementById('bitsHeader').textContent=BitsAdapter.get(); document.getElementById('price').textContent='₿'+Assets[sym].price.toFixed(2); const pct=((Assets[sym].price-Assets[sym].yClose)/Assets[sym].yClose)*100; const dd=document.getElementById('dayDelta'); dd.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; dd.className='pill '+(pct>=0?'up':'down'); draw(document.querySelector('.tf .btn.active')?.dataset.tf || '1h'); },1500);
+
+  function refresh(){ // na trade
+    document.getElementById('bitsHeader').textContent=BitsAdapter.get();
+    const pos=portfolio()[sym]||{qty:0,avg:0}; document.getElementById('posInfo').textContent=`${pos.qty} stuks @ ₿${pos.avg.toFixed(2)}`;
+    document.getElementById('price').textContent='₿'+Assets[sym].price.toFixed(2);
+    draw(document.querySelector('.tf .btn.active')?.dataset.tf || '1h');
+  }
+  function refreshBits(){ document.getElementById('bitsHeader').textContent=BitsAdapter.get(); }
+})();
+</script>
+</body>
+</html>
