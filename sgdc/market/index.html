@@ -26,6 +26,7 @@
     .brand .logo img{width:100%;height:100%;object-fit:contain}
     .spacer{flex:1}
     .balance{font-weight:800;color:var(--good);white-space:nowrap}
+    .back{border:1px solid var(--border);background:#ffffff12;padding:8px 10px;border-radius:10px;text-decoration:none;color:var(--text)}
 
     .container{max-width:1200px;margin:0 auto;padding:20px 16px 56px}
 
@@ -62,6 +63,7 @@
 
   <div class="nav-wrap">
     <nav class="nav">
+      <a class="back" href="/">← Terug</a>
       <div class="brand">
         <div class="logo"><img src="https://groep8sgdc.nl/wp-content/uploads/2022/09/s-Gravendreef-scholen07-01-18-1.png" alt="SGDC"/></div>
         <div>SGDC Live — Market</div>
@@ -122,111 +124,113 @@
 
   <script src="/market/market.js"></script>
   <script>
-    // Tabs
-    const tabMarket = document.getElementById('tabMarket');
-    const tabWallet = document.getElementById('tabWallet');
-    const marketView = document.getElementById('marketView');
-    const walletView = document.getElementById('walletView');
+    document.addEventListener('DOMContentLoaded', () => {
+      // Tabs
+      const tabMarket = document.getElementById('tabMarket');
+      const tabWallet = document.getElementById('tabWallet');
+      const marketView = document.getElementById('marketView');
+      const walletView = document.getElementById('walletView');
 
-    function showMarket(){ tabMarket.classList.add('active'); tabWallet.classList.remove('active'); marketView.style.display='block'; walletView.style.display='none'; }
-    function showWallet(){ tabWallet.classList.add('active'); tabMarket.classList.remove('active'); walletView.style.display='block'; marketView.style.display='none'; }
-    tabMarket.onclick = showMarket;
-    tabWallet.onclick = showWallet;
+      function showMarket(){ tabMarket.classList.add('active'); tabWallet.classList.remove('active'); marketView.style.display='block'; walletView.style.display='none'; }
+      function showWallet(){ tabWallet.classList.add('active'); tabMarket.classList.remove('active'); walletView.style.display='block'; marketView.style.display='none'; }
+      tabMarket.onclick = showMarket;
+      tabWallet.onclick = showWallet;
 
-    // Header & summary render
-    function renderSummary(){
-      document.getElementById('bitsHeader').textContent = Market.bits.get();
-      document.getElementById('bitsWallet').textContent = Market.bits.get();
+      // Header & summary render
+      function renderSummary(){
+        document.getElementById('bitsHeader').textContent = Market.bits.get();
+        document.getElementById('bitsWallet').textContent = Market.bits.get();
 
-      const invested = Market.portfolioValue();
-      document.getElementById('bitsInvested').textContent = invested;
+        const invested = Market.portfolioValue();
+        document.getElementById('bitsInvested').textContent = invested;
 
-      const {now, y} = Market.indexNowY();
-      const pct = ((now - y)/y)*100;
-      const el = document.getElementById('marketDelta');
-      el.textContent = (pct>=0?'+':'') + pct.toFixed(2) + '%';
-      el.style.color = pct>=0 ? 'var(--good)' : 'var(--bad)';
+        const {now, y} = Market.indexNowY();
+        const pct = ((now - y)/y)*100;
+        const el = document.getElementById('marketDelta');
+        el.textContent = (pct>=0?'+':'') + pct.toFixed(2) + '%';
+        el.style.color = pct>=0 ? 'var(--good)' : 'var(--bad)';
 
-      // Wallet tab header chips
-      document.getElementById('walletFree').textContent = Market.bits.get();
-      document.getElementById('walletLocked').textContent = invested;
-      document.getElementById('walletTotal').textContent = Market.bits.get() + invested;
-    }
+        document.getElementById('walletFree').textContent = Market.bits.get();
+        document.getElementById('walletLocked').textContent = invested;
+        document.getElementById('walletTotal').textContent = Market.bits.get() + invested;
+      }
 
-    // Market grid
-    function renderGrid(){
-      const wrap = document.getElementById('assetGrid');
-      wrap.innerHTML = Market.symbols().map(sym=>{
-        const a = Market.assets[sym];
-        const pct = ((a.price - a.yClose)/a.yClose)*100;
-        const cls = pct>=0 ? 'up':'down';
-        const meta = Market.meta[sym];
-        return `
-          <a class="card" href="/market/asset.html?symbol=${encodeURIComponent(sym)}">
-            <div class="row">
-              <div style="display:flex;gap:10px;align-items:center">
-                <div class="pill" style="border:none;background:#ffffff22">${meta.ui.icon || '📦'}</div>
-                <div>
-                  <div class="name">${meta.name}</div>
-                  <div class="ticker">${sym}</div>
+      // Market grid
+      function renderGrid(){
+        const wrap = document.getElementById('assetGrid');
+        wrap.innerHTML = Market.symbols().map(sym=>{
+          const a = Market.assets[sym];
+          const pct = ((a.price - a.yClose)/a.yClose)*100;
+          const cls = pct>=0 ? 'up':'down';
+          const meta = Market.meta[sym];
+          return `
+            <a class="card" href="/market/asset.html?symbol=${encodeURIComponent(sym)}">
+              <div class="row">
+                <div style="display:flex;gap:10px;align-items:center">
+                  <div class="pill" style="border:none;background:#ffffff22">${meta.ui.icon || '📦'}</div>
+                  <div>
+                    <div class="name">${meta.name}</div>
+                    <div class="ticker">${sym}</div>
+                  </div>
+                </div>
+                <div style="text-align:right">
+                  <div class="name">₿${a.price.toFixed(2)}</div>
+                  <div class="pill ${cls}">${pct>=0?'+':''}${pct.toFixed(2)}%</div>
                 </div>
               </div>
-              <div style="text-align:right">
-                <div class="name">₿${a.price.toFixed(2)}</div>
-                <div class="pill ${cls}">${pct>=0?'+':''}${pct.toFixed(2)}%</div>
-              </div>
-            </div>
-          </a>
-        `;
-      }).join('');
-    }
-
-    // Wallet positions table
-    function renderPositions(){
-      const body = document.getElementById('posBody');
-      const rows = [];
-      for(const [sym,pos] of Object.entries(Market.portfolio())){
-        const a = Market.assets[sym];
-        const plAbs = (a.price - pos.avg) * pos.qty;
-        const plPct = (a.price - pos.avg) / pos.avg * 100;
-        rows.push(`
-          <tr>
-            <td><strong>${sym}</strong></td>
-            <td>${pos.qty}</td>
-            <td>₿${pos.avg.toFixed(2)}</td>
-            <td>₿${a.price.toFixed(2)}</td>
-            <td style="color:${plAbs>=0?'var(--good)':'var(--bad)'}">
-              ${plAbs>=0?'+':''}${plAbs.toFixed(2)} (${plPct>=0?'+':''}${plPct.toFixed(2)}%)
-            </td>
-            <td class="actions">
-              <a class="btn" href="/market/asset.html?symbol=${encodeURIComponent(sym)}">Beheer</a>
-            </td>
-          </tr>
-        `);
+            </a>
+          `;
+        }).join('');
       }
-      body.innerHTML = rows.length? rows.join('') : `<tr><td colspan="6" class="text-muted">Nog geen posities.</td></tr>`;
-    }
 
-    // Tick loop: prijzen en UI (“hold” effect)
-    function loop(){
-      Market.tickAll();
-      if(Math.random()<0.70){ // 70% kans direct verversen (30% “hold” voor realism)
-        renderSummary();
-        renderGrid();
-        renderPositions();
+      // Wallet positions table
+      function renderPositions(){
+        const body = document.getElementById('posBody');
+        const rows = [];
+        for(const [sym,pos] of Object.entries(Market.portfolio())){
+          const a = Market.assets[sym];
+          const plAbs = (a.price - pos.avg) * pos.qty;
+          const plPct = (a.price - pos.avg) / pos.avg * 100;
+          rows.push(`
+            <tr>
+              <td><strong>${sym}</strong></td>
+              <td>${pos.qty}</td>
+              <td>₿${pos.avg.toFixed(2)}</td>
+              <td>₿${a.price.toFixed(2)}</td>
+              <td style="color:${plAbs>=0?'var(--good)':'var(--bad)'}">
+                ${plAbs>=0?'+':''}${plAbs.toFixed(2)} (${plPct>=0?'+':''}${plPct.toFixed(2)}%)
+              </td>
+              <td class="actions">
+                <a class="btn" href="/market/asset.html?symbol=${encodeURIComponent(sym)}">Beheer</a>
+              </td>
+            </tr>
+          `);
+        }
+        body.innerHTML = rows.length? rows.join('') : `<tr><td colspan="6" class="text-muted">Nog geen posities.</td></tr>`;
       }
-      requestAnimationFrame(loop);
-    }
 
-    // Init
-    Market.init();      // zet assets, yClose, history, bits (indien leeg)
-    renderSummary();
-    renderGrid();
-    renderPositions();
-    loop();
+      // Main loop
+      function loop(){
+        Market.tickAll();
+        // “Hold” effect: 70% kans UI refresh, 30% even vasthouden
+        if(Math.random()<0.70){
+          renderSummary();
+          renderGrid();
+          renderPositions();
+        }
+        requestAnimationFrame(loop);
+      }
 
-    // Klik op wallet box = naar wallet tab
-    document.getElementById('boxWallet').onclick = showWallet;
+      // Init FIRST, then initial render
+      Market.init();
+      renderSummary();
+      renderGrid();
+      renderPositions();
+      loop();
+
+      // Klik op wallet box = naar wallet tab
+      document.getElementById('boxWallet').onclick = showWallet;
+    });
   </script>
 </body>
 </html>
