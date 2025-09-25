@@ -118,141 +118,143 @@
   </main>
 
   <script>
-    const q = new URLSearchParams(location.search);
-    const sym = q.get('symbol') || 'SNK';
+    document.addEventListener('DOMContentLoaded', () => {
+      const q = new URLSearchParams(location.search);
+      const sym = q.get('symbol') || 'SNK';
 
-    function setActiveTf(tf){
-      document.querySelectorAll('.tf .btn').forEach(b=>{
-        b.classList.toggle('active', b.dataset.tf===tf);
-      });
-    }
-
-    function renderHeader(){
-      document.getElementById('bitsHeader').textContent = Market.bits.get();
-      const meta = Market.meta[sym] || {name:sym, ui:{icon:'📦'}};
-      const a = Market.assets[sym];
-
-      document.getElementById('icon').textContent = meta.ui.icon || '📦';
-      document.getElementById('name').textContent = meta.name || sym;
-      document.getElementById('ticker').textContent = sym;
-      document.getElementById('price').textContent = '₿'+a.price.toFixed(2);
-
-      const pct = ((a.price - a.yClose)/a.yClose)*100;
-      const dd = document.getElementById('dayDelta');
-      dd.textContent = (pct>=0?'+':'')+pct.toFixed(2)+'%';
-      dd.className = 'pill ' + (pct>=0?'up':'down');
-
-      document.getElementById('hint').textContent = meta.tagline + ' — ' + meta.behavior;
-      document.getElementById('about').innerHTML = `
-        <div><strong>Volatiliteit:</strong> ${meta.volatility}</div>
-        <div style="margin-top:6px">${meta.behavior}</div>
-      `;
-
-      const pos = Market.portfolio()[sym] || {qty:0, avg:0};
-      document.getElementById('posInfo').textContent = `${pos.qty} stuks @ ₿${pos.avg.toFixed(2)}`;
-      document.getElementById('feeBuy').textContent = (Market.fee*100).toFixed(2)+'%';
-    }
-
-    // Simple sparkline
-    function drawChart(tf='1h'){
-      const c = document.getElementById('chart');
-      const ctx = c.getContext('2d');
-      ctx.clearRect(0,0,c.width,c.height);
-
-      const hist = Market.history(sym);
-      if(!hist.length) return;
-
-      // slice per timeframe (rough)
-      let take = hist.length;
-      const map = { '1h':120, '1d':720, '1w':720*5, '1m':720*20, 'all':hist.length };
-      if(map[tf]) take = Math.min(map[tf], hist.length);
-      const data = hist.slice(-take);
-
-      const min = Math.min(...data);
-      const max = Math.max(...data);
-      const pad = 6;
-      const W = c.width, H = c.height;
-
-      // grid baseline
-      ctx.globalAlpha = .15;
-      ctx.strokeStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.moveTo(pad, H/2);
-      ctx.lineTo(W-pad, H/2);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-
-      // line
-      ctx.beginPath();
-      data.forEach((v,i)=>{
-        const x = pad + (i/(data.length-1))*(W-2*pad);
-        const y = H - pad - ((v-min)/(max-min||1))*(H-2*pad);
-        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-      });
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#8a7cff';
-      ctx.stroke();
-
-      // last dot
-      const last = data[data.length-1];
-      const xLast = pad + (data.length-1)/(data.length-1)*(W-2*pad);
-      const yLast = H - pad - ((last-min)/(max-min||1))*(H-2*pad);
-      ctx.fillStyle = '#ffd66b';
-      ctx.beginPath();
-      ctx.arc(xLast,yLast,3,0,Math.PI*2);
-      ctx.fill();
-    }
-
-    // Events
-    document.querySelectorAll('.tf .btn').forEach(b=>{
-      b.onclick = ()=>{ setActiveTf(b.dataset.tf); drawChart(b.dataset.tf); };
-    });
-
-    document.getElementById('btnBuy').onclick = ()=>{
-      const a = Market.assets[sym];
-      const bits = Math.max(1, Math.floor(Number(document.getElementById('buyBits').value||0)));
-      const qty = Math.floor(bits / (a.price*(1+Market.fee)));
-      if(qty<=0){ alert('Te weinig Bits voor minimaal 1 stuk.'); return; }
-      const res = Market.buy(sym, qty);
-      if(!res.ok) alert(res.msg);
-      renderHeader(); drawChart(document.querySelector('.tf .btn.active').dataset.tf);
-    };
-
-    document.getElementById('btnSell').onclick = ()=>{
-      const qty = Math.max(1, Math.floor(Number(document.getElementById('sellQty').value||0)));
-      const res = Market.sell(sym, qty);
-      if(!res.ok) alert(res.msg);
-      renderHeader(); drawChart(document.querySelector('.tf .btn.active').dataset.tf);
-    };
-
-    document.getElementById('btnDeposit').onclick = ()=>{ Market.bits.set(Market.bits.get()+100); renderHeader(); };
-    document.getElementById('btnWithdraw').onclick = ()=>{ Market.bits.set(Math.max(0, Market.bits.get()-100)); renderHeader(); };
-
-    document.getElementById('btnSwap').onclick = ()=>{
-      const target = prompt('Swap naar symbol (bijv. SNK, FRIK, ...):','SNK');
-      if(!target || !Market.assets[target]){ alert('Onbekende target.'); return; }
-      const qty = Math.max(1, Math.floor(Number(prompt('Aantal te swappen (verkoop huidig, koop target):','1')||0)));
-      const res = Market.swap(sym, target, qty);
-      alert(res.msg);
-      renderHeader(); drawChart(document.querySelector('.tf .btn.active').dataset.tf);
-    };
-
-    // loop
-    function loop(){
-      Market.tickAll();
-      if(Math.random()<0.70){
-        renderHeader();
-        drawChart(document.querySelector('.tf .btn.active')?.dataset.tf || '1h');
+      function setActiveTf(tf){
+        document.querySelectorAll('.tf .btn').forEach(b=>{
+          b.classList.toggle('active', b.dataset.tf===tf);
+        });
       }
-      requestAnimationFrame(loop);
-    }
 
-    // init
-    Market.init();
-    setActiveTf('1h');
-    renderHeader();
-    drawChart('1h');
-    loop();
+      function renderHeader(){
+        document.getElementById('bitsHeader').textContent = Market.bits.get();
+        const meta = Market.meta[sym] || {name:sym, ui:{icon:'📦'}};
+        const a = Market.assets[sym];
+
+        document.getElementById('icon').textContent = meta.ui.icon || '📦';
+        document.getElementById('name').textContent = meta.name || sym;
+        document.getElementById('ticker').textContent = sym;
+        document.getElementById('price').textContent = '₿'+a.price.toFixed(2);
+
+        const pct = ((a.price - a.yClose)/a.yClose)*100;
+        const dd = document.getElementById('dayDelta');
+        dd.textContent = (pct>=0?'+':'')+pct.toFixed(2)+'%';
+        dd.className = 'pill ' + (pct>=0?'up':'down');
+
+        document.getElementById('hint').textContent = meta.tagline + ' — ' + meta.behavior;
+        document.getElementById('about').innerHTML = `
+          <div><strong>Volatiliteit:</strong> ${meta.volatility}</div>
+          <div style="margin-top:6px">${meta.behavior}</div>
+        `;
+
+        const pos = Market.portfolio()[sym] || {qty:0, avg:0};
+        document.getElementById('posInfo').textContent = `${pos.qty} stuks @ ₿${pos.avg.toFixed(2)}`;
+        document.getElementById('feeBuy').textContent = (Market.fee*100).toFixed(2)+'%';
+      }
+
+      // Simple sparkline (canvas)
+      function drawChart(tf='1h'){
+        const c = document.getElementById('chart');
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0,0,c.width,c.height);
+
+        const hist = Market.history(sym);
+        if(!hist.length) return;
+
+        let take = hist.length;
+        const map = { '1h':120, '1d':720, '1w':720*5, '1m':720*20, 'all':hist.length };
+        if(map[tf]) take = Math.min(map[tf], hist.length);
+        const data = hist.slice(-take);
+
+        const min = Math.min(...data);
+        const max = Math.max(...data);
+        const pad = 6;
+        const W = c.width, H = c.height;
+
+        // baseline
+        ctx.globalAlpha = .15;
+        ctx.strokeStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(pad, H/2);
+        ctx.lineTo(W-pad, H/2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        // line
+        ctx.beginPath();
+        data.forEach((v,i)=>{
+          const x = pad + (i/(data.length-1))*(W-2*pad);
+          const y = H - pad - ((v-min)/(max-min||1))*(H-2*pad);
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#8a7cff';
+        ctx.stroke();
+
+        // last dot
+        const last = data[data.length-1];
+        const xLast = pad + (data.length-1)/(data.length-1)*(W-2*pad);
+        const yLast = H - pad - ((last-min)/(max-min||1))*(H-2*pad);
+        ctx.fillStyle = '#ffd66b';
+        ctx.beginPath();
+        ctx.arc(xLast,yLast,3,0,Math.PI*2);
+        ctx.fill();
+      }
+
+      // TF buttons
+      document.querySelectorAll('.tf .btn').forEach(b=>{
+        b.onclick = ()=>{ setActiveTf(b.dataset.tf); drawChart(b.dataset.tf); };
+      });
+
+      // Actions
+      document.getElementById('btnBuy').onclick = ()=>{
+        const a = Market.assets[sym];
+        const bits = Math.max(1, Math.floor(Number(document.getElementById('buyBits').value||0)));
+        const qty = Math.floor(bits / (a.price*(1+Market.fee)));
+        if(qty<=0){ alert('Te weinig Bits voor minimaal 1 stuk.'); return; }
+        const res = Market.buy(sym, qty);
+        if(!res.ok) alert(res.msg);
+        renderHeader(); drawChart(document.querySelector('.tf .btn.active').dataset.tf);
+      };
+
+      document.getElementById('btnSell').onclick = ()=>{
+        const qty = Math.max(1, Math.floor(Number(document.getElementById('sellQty').value||0)));
+        const res = Market.sell(sym, qty);
+        if(!res.ok) alert(res.msg);
+        renderHeader(); drawChart(document.querySelector('.tf .btn.active').dataset.tf);
+      };
+
+      document.getElementById('btnDeposit').onclick = ()=>{ Market.bits.set(Market.bits.get()+100); renderHeader(); };
+      document.getElementById('btnWithdraw').onclick = ()=>{ Market.bits.set(Math.max(0, Market.bits.get()-100)); renderHeader(); };
+
+      document.getElementById('btnSwap').onclick = ()=>{
+        const target = prompt('Swap naar symbol (bijv. SNK, FRIK, ...):','SNK');
+        if(!target || !Market.assets[target]){ alert('Onbekende target.'); return; }
+        const qty = Math.max(1, Math.floor(Number(prompt('Aantal te swappen (verkoop huidig, koop target):','1')||0)));
+        const res = Market.swap(sym, target, qty);
+        alert(res.msg);
+        renderHeader(); drawChart(document.querySelector('.tf .btn.active').dataset.tf);
+      };
+
+      // loop
+      function loop(){
+        Market.tickAll();
+        if(Math.random()<0.70){
+          renderHeader();
+          drawChart(document.querySelector('.tf .btn.active')?.dataset.tf || '1h');
+        }
+        requestAnimationFrame(loop);
+      }
+
+      // Init & first paint
+      Market.init();              // zorgt voor assets + lange history
+      setActiveTf('1h');
+      renderHeader();
+      drawChart('1h');
+      loop();
+    });
   </script>
 </body>
 </html>
