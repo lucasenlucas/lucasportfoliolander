@@ -103,7 +103,7 @@ input[type=number]{background:#0f1330;color:var(--text);border:1px solid var(--b
           </div>
         </div>
 
-        <!-- ✅ Nieuw: Claim sectie -->
+        <!-- ✅ Claim: vul Bits in, wij verkopen juiste stuks -->
         <div id="sellCard" style="margin-top:16px">
           <div class="field">
             <label>Claim — bedrag in Bits</label>
@@ -140,10 +140,10 @@ input[type=number]{background:#0f1330;color:var(--text);border:1px solid var(--b
 
 <script>
 /* =========================
-   SGDC Asset — v2.1 (met Claim Bits)
+   SGDC Asset — v2.3 (grafiek + stats + koop + claim)
    ========================= */
 
-// Bits
+/* Bits (decimals) */
 const STORAGE_KEY='sgdc.bits';
 let balance=parseFloat(localStorage.getItem(STORAGE_KEY)??'100');
 if(!Number.isFinite(balance)) balance=100;
@@ -153,14 +153,237 @@ function setBits(v){ balance=Math.max(0, Number(v)||0); localStorage.setItem(STO
 window.sgdcBits={ get:()=>balance, set:setBits, add:(a)=>setBits(balance+Number(a||0)), reset:()=>{localStorage.removeItem(STORAGE_KEY); setBits(100);} };
 renderBits();
 
-// Market data etc. (zelfde als in jouw code) …
-/*  >>> HIER ZOU JE AL JE bestaande Assets, Portfolio, buy(), sell(), chart, onboarding, renderAll(), boot() CODE LATEN STAAN  <<< */
+/* Shared market keys */
+const assetsKey='market.assets', portfolioKey='portfolio', histPrefix='market.history.', tradesPrefix='market.trades.', lastKey='sgdc.market.last';
+const E=id=>document.getElementById(id);
+const fmt=n=>'₿'+Number(n).toFixed(2);
+const now=()=>Date.now();
 
-// ✅ Extra Claim logica
-const Fee = 0.005;
+/* Meta (assets) */
+const Meta={
+  SNK:{name:"Snacko",icon:"🍪",vol:.006,seed:95},
+  FRIK:{name:"Frikandelium",icon:"🌭",vol:.010,seed:42},
+  COKE:{name:"ColaCap",icon:"🥤",vol:.009,seed:60},
+  BBIT:{name:"Bitterbit",icon:"🟤",vol:.007,seed:33},
+  HWK:{name:"HwCoin",icon:"📚",vol:.004,seed:25},
+  TCH:{name:"TeachToken",icon:"👩‍🏫",vol:.008,seed:70},
+  WIFI:{name:"LaggyFi",icon:"📶",vol:.012,seed:15},
+  CHAIR:{name:"ChairChain",icon:"🪑",vol:.005,seed:8},
+  CHZB:{name:"CheezeBread",icon:"🧀",vol:.003,seed:12},
+  PPLX:{name:"PartyPlex",icon:"🎉",vol:.015,seed:140},
+};
+const Symbols=Object.keys(Meta);
+const params=new URLSearchParams(location.search);
+const sym=params.get('symbol')||'SNK';
+function Hhist(s){return histPrefix+s} function Htr(s){return tradesPrefix+s}
+
+/* Seed assets & history */
+function ensureSeed(){
+  let A=JSON.parse(localStorage.getItem(assetsKey)||'null');
+  if(A) return A;
+  A={}; Symbols.forEach(k=>{
+    const m=Meta[k], p0=m.seed, yClose=+(p0*(1+(Math.random()*2-1)*0.02)).toFixed(2);
+    A[k]={price:p0,vol:m.vol,yClose};
+    const N=720; const arr=[]; let p=p0;
+    for(let i=0;i<N;i++){
+      const r=(Math.random()*2-1)*(m.vol*0.9), th=0.02;
+      p=p*(1+r)+th*(p0-p);
+      p=Math.max(1,+p.toFixed(2)); arr.push(p);
+    }
+    localStorage.setItem(Hhist(k), JSON.stringify(arr));
+    localStorage.setItem(Htr(k), JSON.stringify([]));
+  });
+  localStorage.setItem(assetsKey, JSON.stringify(A));
+  localStorage.setItem(lastKey, String(now()));
+  return A;
+}
+let Assets=ensureSeed();
+
+/* Portfolio (decimals) */
+function portfolio(){ return JSON.parse(localStorage.getItem(portfolioKey)||'{}'); }
+function setPortfolio(p){ localStorage.setItem(portfolioKey, JSON.stringify(p)); }
+const Fee=0.005;
+
+/* History helpers */
+function history(s){ return JSON.parse(localStorage.getItem(Hhist(s))||'[]'); }
+function setHistory(s,arr){ localStorage.setItem(Hhist(s), JSON.stringify(arr)); }
+function trades(s){ return JSON.parse(localStorage.getItem(Htr(s))||'[]'); }
+function addTrade(s,t){ const arr=trades(s); arr.push(t); localStorage.setItem(Htr(s), JSON.stringify(arr)); }
+
+/* Offline catch-up engine */
+const TICK_MS=2000;
+function stepOnce(A){
+  Symbols.forEach(k=>{
+    const a=A[k];
+    let p=a.price*(1+(Math.random()*2-1)*a.vol*0.3);
+    p = Math.max(1, +p.toFixed(2));
+    a.price = p;
+    const hk=Hhist(k);
+    const hist = JSON.parse(localStorage.getItem(hk)||'[]');
+    hist.push(p); if(hist.length>3000) hist.shift();
+    localStorage.setItem(hk, JSON.stringify(hist));
+  });
+  localStorage.setItem(assetsKey, JSON.stringify(A));
+}
+function catchUp(){
+  const last = parseInt(localStorage.getItem(lastKey)||String(now()),10);
+  const elapsed = Math.max(0, now()-last);
+  let steps = Math.floor(elapsed / TICK_MS);
+  if(steps<=0) return;
+  const MAX_STEPS = 5000;
+  steps = Math.min(steps, MAX_STEPS);
+  let A=JSON.parse(localStorage.getItem(assetsKey));
+  for(let i=0;i<steps;i++) stepOnce(A);
+  localStorage.setItem(lastKey, String(now()));
+  Assets=JSON.parse(localStorage.getItem(assetsKey));
+}
+window.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible'){ catchUp(); renderAll(); }
+  localStorage.setItem(lastKey, String(now()));
+});
+window.addEventListener('beforeunload', ()=>localStorage.setItem(lastKey, String(now())));
+
+/* UI header/stats */
+function renderHeader(){
+  const a=Assets[sym];
+  E('icon').textContent = (Meta[sym]?.icon || '📦');
+  E('name').textContent = (Meta[sym]?.name || sym);
+  E('ticker').textContent = sym;
+  E('price').textContent = fmt(a.price);
+  const pct=((a.price - a.yClose)/a.yClose)*100;
+  const dd=E('dayDelta'); dd.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; dd.className='pill '+(pct>=0?'up':'down');
+}
+function renderStats(){
+  const pos=portfolio()[sym] || {qty:0,avg:0};
+  const invested = pos.qty * pos.avg;
+  const value    = pos.qty * Assets[sym].price;
+  const pl       = value - invested;
+  const plPct    = invested>0 ? (pl/invested*100) : 0;
+  E('posInfo').textContent = `${(pos.qty||0).toFixed(2)} stuks @ ${fmt(pos.avg||0)}`;
+  E('statsLine').innerHTML = `
+    <div class="chip">Ingelegd: <strong>${fmt(invested||0)}</strong></div>
+    <div class="chip">Huidige waarde: <strong>${fmt(value||0)}</strong></div>
+    <div class="chip">P/L: <strong style="color:${pl>=0?'var(--good)':'var(--bad)'}">${pl>=0?'+':''}${fmt(Math.abs(pl)).replace('₿','')}</strong> (${plPct>=0?'+':''}${plPct.toFixed(2)}%)</div>
+  `;
+}
+
+/* Trade ops */
+function buy(sym, qty){
+  qty = Math.max(0.0001, Number(qty)||0);
+  const a=Assets[sym];
+  const cost = qty * a.price * (1+Fee);
+  if(sgdcBits.get() < cost) return {ok:false, msg:'Onvoldoende Bits.'};
+  sgdcBits.set( + (sgdcBits.get() - cost).toFixed(2) );
+  const pf=portfolio(); const pos=pf[sym] || {qty:0,avg:0};
+  const newQty = pos.qty + qty;
+  const newAvg = (pos.qty*pos.avg + qty*a.price) / newQty;
+  pf[sym] = { qty:+newQty.toFixed(6), avg:+newAvg.toFixed(4) };
+  setPortfolio(pf);
+  const idx = history(sym).length-1;
+  addTrade(sym,{t:now(),type:'buy',qty:+qty.toFixed(6),price:a.price,idx});
+  return {ok:true,msg:`Kocht ${qty.toFixed(4)} ${sym} @ ${fmt(a.price)} (incl. ${(Fee*100).toFixed(2)}% fee)`};
+}
+function sell(sym, qty){
+  qty = Math.max(0.0001, Number(qty)||0);
+  const pf=portfolio(); const pos=pf[sym];
+  if(!pos || pos.qty < qty) return {ok:false, msg:'Niet genoeg positie.'};
+  const a=Assets[sym];
+  const proceeds = qty * a.price * (1-Fee);
+  sgdcBits.set( + (sgdcBits.get() + proceeds).toFixed(2) );
+  const newQty = pos.qty - qty;
+  if(newQty <= 0.0000001) delete pf[sym];
+  else pf[sym] = { qty:+newQty.toFixed(6), avg:pos.avg };
+  setPortfolio(pf);
+  const idx = history(sym).length-1;
+  addTrade(sym,{t:now(),type:'sell',qty:+qty.toFixed(6),price:a.price,idx});
+  return {ok:true,msg:`Verkocht ${qty.toFixed(4)} ${sym} @ ${fmt(a.price)} (na fee)`};
+}
+function swap(fromSym,toSym,qty){
+  if(fromSym===toSym) return {ok:false,msg:'Zelfde asset.'};
+  const s1=sell(fromSym,qty); if(!s1.ok) return s1;
+  const a=Assets[toSym];
+  const buyableQty = (sgdcBits.get() / (a.price*(1+Fee)));
+  if(buyableQty<=0) return {ok:true,msg:`Verkocht ${qty} ${fromSym}. Niet genoeg Bits voor ${toSym}.`};
+  const s2=buy(toSym,buyableQty);
+  return {ok:true,msg:`Swap: -${qty} ${fromSym}, +${buyableQty.toFixed(4)} ${toSym}.`};
+}
+
+/* Chart */
+const c=E('chart'); const ctx=c.getContext('2d');
+function drawChart(tf='1h'){
+  const hist = history(sym);
+  if(!hist.length){ ctx.clearRect(0,0,c.width,c.height); return; }
+  const map = { '1h':120, '1d':720, '1w':720*5, '1m':720*20, 'all':hist.length };
+  const take = Math.min(map[tf]||hist.length, hist.length);
+  const start = hist.length - take;
+  const data = hist.slice(start);
+  const min = Math.min(...data), max = Math.max(...data);
+  const pad = 8, W=c.width, H=c.height;
+  ctx.clearRect(0,0,W,H);
+  // midline
+  ctx.globalAlpha=.12; ctx.strokeStyle='#fff';
+  ctx.beginPath(); ctx.moveTo(pad, H/2); ctx.lineTo(W-pad, H/2); ctx.stroke(); ctx.globalAlpha=1;
+  // line
+  ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x = pad + (i/(data.length-1))*(W-2*pad);
+    const y = H - pad - ((v-min)/(max-min||1))*(H-2*pad);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.lineWidth = 2; ctx.strokeStyle = '#8a7cff'; ctx.stroke();
+  // trade markers
+  const ts = trades(sym);
+  ts.forEach(tr=>{
+    const li = tr.idx - start; if(li<0 || li>=data.length) return;
+    const x = pad + (li/(data.length-1))*(W-2*pad);
+    const y = H - pad - ((tr.price-min)/(max-min||1))*(H-2*pad);
+    ctx.globalAlpha=.22; ctx.strokeStyle = tr.type==='buy'?'#37d87c':'#ff6b6b';
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-pad,y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x,pad); ctx.lineTo(x,H-pad); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.beginPath();
+    if(tr.type==='buy'){ ctx.fillStyle='#37d87c'; ctx.moveTo(x,y-6); ctx.lineTo(x-6,y+6); ctx.lineTo(x+6,y+6); ctx.closePath(); ctx.fill(); }
+    else{ ctx.fillStyle='#ff6b6b'; ctx.moveTo(x,y+6); ctx.lineTo(x-6,y-6); ctx.lineTo(x+6,y-6); ctx.closePath(); ctx.fill(); }
+  });
+}
+
+/* Live tick (foreground) */
+function liveTick(){
+  let A=JSON.parse(localStorage.getItem(assetsKey));
+  stepOnce(A);
+  Assets=A;
+  localStorage.setItem(lastKey, String(now()));
+}
+
+/* UI events */
+document.querySelectorAll('.tf .btn').forEach(b=>{
+  b.onclick=()=>{ document.querySelectorAll('.tf .btn').forEach(x=>x.classList.toggle('active',x===b)); drawChart(b.dataset.tf); };
+});
+document.getElementById('buyBits').addEventListener('input', ()=>{
+  const amt = Math.max(0, Number(document.getElementById('buyBits').value)||0);
+  const qty = amt / (Assets[sym].price*(1+Fee));
+  document.getElementById('buyQtyPreview').textContent = (qty>0 && isFinite(qty)) ? qty.toFixed(4) : '0.00';
+});
+document.getElementById('btnBuy').onclick=()=>{
+  const amt = Math.max(0.01, Number(document.getElementById('buyBits').value)||0);
+  const qty = amt / (Assets[sym].price*(1+Fee));
+  if(qty<=0){ alert('Bedrag te laag.'); return; }
+  const res = buy(sym, qty);
+  if(!res.ok) alert(res.msg);
+  renderAll();
+};
+document.getElementById('btnSwap').onclick=()=>{
+  const target = prompt('Swap naar symbol (SNK, FRIK, COKE, ...):','SNK');
+  if(!target || !Assets[target]){ alert('Onbekend target.'); return; }
+  const qty = Math.max(0.01, Number(prompt('Aantal te swappen (decimaal toegestaan):','0.5'))||0);
+  const res = swap(sym, target, qty);
+  alert(res.msg);
+  renderAll();
+};
+
+/* ✅ Claim Bits */
 const $claim = document.getElementById('claimBits');
 const $claimInfo = document.getElementById('claimInfo');
-function pos(){ return (JSON.parse(localStorage.getItem('portfolio')||'{}'))[sym] || {qty:0,avg:0}; }
+function pos(){ return portfolio()[sym] || {qty:0,avg:0}; }
 function unitsForBits(bits, price){ return bits / (price * (1 - Fee)); }
 function bitsForUnits(units, price){ return units * price * (1 - Fee); }
 function r(n,d=6){ const p=10**d; return Math.round(n*p)/p; }
@@ -202,6 +425,56 @@ document.getElementById('btnClaim').addEventListener('click', ()=>{
   $claimInfo.textContent = `✅ Geclaimd: ฿${bitsNetto}.`;
   renderAll();
 });
+
+/* Onboarding */
+const steps=[
+  {t:'Welkom bij Asset', x:'Hier zie je de koers, jouw positie en een live grafiek.' , h:'#headBlock'},
+  {t:'Grafiek', x:'De grafiek beweegt live mee. ▲/▼ geven jouw aankopen/verkopen aan.', h:'#chartWrap'},
+  {t:'Jouw positie', x:'Hierboven zie je Ingelegd, Huidige waarde en je winst/verlies.', h:'#statsLine'},
+  {t:'Kopen', x:'Vul een bedrag in Bits in. We kopen decimale stuks voor je.', h:'#buyCard'},
+  {t:'Claim', x:'Vul een bedrag in Bits in. We verkopen automatisch genoeg stuks.', h:'#sellCard'},
+  {t:'Veel succes!', x:'Je bent klaar om te handelen. Gebruik ? om dit terug te zien.', h:null}
+];
+let step=0;
+const onboard=document.getElementById('onboard'), onTitle=document.getElementById('onTitle'), onText=document.getElementById('onText'), onPrev=document.getElementById('onPrev'), onNext=document.getElementById('onNext');
+function clearHL(){ document.querySelectorAll('.highlight').forEach(el=>el.classList.remove('highlight')); }
+function showStep(i){
+  step=i; clearHL();
+  onTitle.textContent=steps[i].t; onText.textContent=steps[i].x;
+  if(steps[i].h){ const el=document.querySelector(steps[i].h); if(el) el.classList.add('highlight'); }
+  onPrev.style.display = i>0 ? 'inline-block' : 'none';
+  onNext.textContent   = i===steps.length-1 ? 'Start!' : 'Volgende';
+}
+onPrev.onclick = ()=> showStep(step-1);
+onNext.onclick = ()=>{
+  if(step<steps.length-1) showStep(step+1);
+  else { onboard.style.display='none'; clearHL(); localStorage.setItem('sgdc.asset.onboarded','1'); }
+};
+document.getElementById('helpBtn').onclick = ()=>{ onboard.style.display='flex'; showStep(0); };
+if(!localStorage.getItem('sgdc.asset.onboarded')){ onboard.style.display='flex'; showStep(0); }
+
+/* Render helper */
+function renderAll(){
+  renderBits(); renderHeader(); renderStats();
+  drawChart(document.querySelector('.tf .btn.active')?.dataset.tf || '1h');
+  // sync claim preview
+  if($claim.value){ $claim.dispatchEvent(new Event('input')); }
+}
+
+/* Boot */
+function boot(){
+  catchUp();
+  renderAll();
+  document.getElementById('feeBuy').textContent = (Fee*100).toFixed(2)+'%';
+  document.getElementById('buyBits').dispatchEvent(new Event('input'));
+  setInterval(()=>{        // foreground live
+    if(document.visibilityState==='visible'){
+      liveTick();
+      renderAll();
+    }
+  }, TICK_MS);
+}
+boot();
 </script>
 </body>
 </html>
