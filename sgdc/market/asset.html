@@ -140,7 +140,7 @@ input[type=number]{background:#0f1330;color:var(--text);border:1px solid var(--b
 
 <script>
 /* =========================
-   SGDC Asset — v2.3 (grafiek + stats + koop + claim)
+   SGDC Asset — v2.4 (deterministische markt voor iedereen gelijk)
    ========================= */
 
 /* Bits (decimals) */
@@ -158,6 +158,28 @@ const assetsKey='market.assets', portfolioKey='portfolio', histPrefix='market.hi
 const E=id=>document.getElementById(id);
 const fmt=n=>'₿'+Number(n).toFixed(2);
 const now=()=>Date.now();
+
+/* === Deterministische tijd & ruis (iedereen gelijk) === */
+const TICK_MS = 2000; // 2 seconden per stap
+// Vast anker (UTC): 26 Sep 2025 00:00:00 — kies wat je wilt, maar houd 'm gelijk voor iedereen
+const EPOCH = Date.UTC(2025, 8, 26, 0, 0, 0);
+
+function globalStep() {
+  return Math.max(0, Math.floor((Date.now() - EPOCH) / TICK_MS));
+}
+
+// Pseudo-random in [-1, +1) per (sym, step), maar deterministisch
+function stepNoise(sym, step) {
+  let h = step >>> 0;
+  for (let i = 0; i < sym.length; i++) {
+    h = (h ^ sym.charCodeAt(i)) >>> 0;
+    h = Math.imul(h, 0x45d9f3b) >>> 0;
+    h = (h ^ (h >>> 13)) >>> 0;
+  }
+  h = (Math.imul(h, 1664525) + 1013904223) >>> 0;
+  const u = h / 2**32; // [0,1)
+  return (u * 2) - 1;  // [-1,1)
+}
 
 /* Meta (assets) */
 const Meta={
@@ -177,24 +199,19 @@ const params=new URLSearchParams(location.search);
 const sym=params.get('symbol')||'SNK';
 function Hhist(s){return histPrefix+s} function Htr(s){return tradesPrefix+s}
 
-/* Seed assets & history */
+/* Seed assets & history — geen random prehistory; deterministisch wordt opgebouwd */
 function ensureSeed(){
   let A=JSON.parse(localStorage.getItem(assetsKey)||'null');
   if(A) return A;
   A={}; Symbols.forEach(k=>{
-    const m=Meta[k], p0=m.seed, yClose=+(p0*(1+(Math.random()*2-1)*0.02)).toFixed(2);
-    A[k]={price:p0,vol:m.vol,yClose};
-    const N=720; const arr=[]; let p=p0;
-    for(let i=0;i<N;i++){
-      const r=(Math.random()*2-1)*(m.vol*0.9), th=0.02;
-      p=p*(1+r)+th*(p0-p);
-      p=Math.max(1,+p.toFixed(2)); arr.push(p);
-    }
-    localStorage.setItem(Hhist(k), JSON.stringify(arr));
+    const m=Meta[k];
+    A[k]={price:m.seed, vol:m.vol, yClose:m.seed}; // start bij seed, yClose = seed
+    localStorage.setItem(Hhist(k), JSON.stringify([])); // lege history; wordt deterministisch gevuld
     localStorage.setItem(Htr(k), JSON.stringify([]));
   });
   localStorage.setItem(assetsKey, JSON.stringify(A));
-  localStorage.setItem(lastKey, String(now()));
+  // lastKey op huidige global step zetten zodat catchUp exact vanaf hier bouwt
+  localStorage.setItem(lastKey, String(globalStep()));
   return A;
 }
 let Assets=ensureSeed();
@@ -210,38 +227,44 @@ function setHistory(s,arr){ localStorage.setItem(Hhist(s), JSON.stringify(arr));
 function trades(s){ return JSON.parse(localStorage.getItem(Htr(s))||'[]'); }
 function addTrade(s,t){ const arr=trades(s); arr.push(t); localStorage.setItem(Htr(s), JSON.stringify(arr)); }
 
-/* Offline catch-up engine */
-const TICK_MS=2000;
-function stepOnce(A){
+/* === Deterministische stap (precies 1 step vooruit) === */
+function stepOnceDeterministic(A, stepIndex){
   Symbols.forEach(k=>{
     const a=A[k];
-    let p=a.price*(1+(Math.random()*2-1)*a.vol*0.3);
-    p = Math.max(1, +p.toFixed(2));
-    a.price = p;
+    const m=Meta[k];
+    const r = stepNoise(k, stepIndex) * (m.vol * 0.3);
+    const th = 0.02; // mean reversion richting seed
+    let p = a.price * (1 + r);
+    p = p + th * (m.seed - p);
+    a.price = Math.max(1, +p.toFixed(2));
+
     const hk=Hhist(k);
     const hist = JSON.parse(localStorage.getItem(hk)||'[]');
-    hist.push(p); if(hist.length>3000) hist.shift();
+    hist.push(a.price); if(hist.length>3000) hist.shift();
     localStorage.setItem(hk, JSON.stringify(hist));
   });
   localStorage.setItem(assetsKey, JSON.stringify(A));
 }
+
+/* Offline catch-up engine — bouw deterministisch van last -> target */
 function catchUp(){
-  const last = parseInt(localStorage.getItem(lastKey)||String(now()),10);
-  const elapsed = Math.max(0, now()-last);
-  let steps = Math.floor(elapsed / TICK_MS);
+  const last = parseInt(localStorage.getItem(lastKey)||"0",10);
+  const target = globalStep();
+  if(!Number.isFinite(last)) { localStorage.setItem(lastKey, String(target)); return; }
+
+  let steps = target - last;
   if(steps<=0) return;
+
   const MAX_STEPS = 5000;
   steps = Math.min(steps, MAX_STEPS);
+
   let A=JSON.parse(localStorage.getItem(assetsKey));
-  for(let i=0;i<steps;i++) stepOnce(A);
-  localStorage.setItem(lastKey, String(now()));
+  for(let i=1;i<=steps;i++){
+    stepOnceDeterministic(A, last + i);
+  }
+  localStorage.setItem(lastKey, String(last + steps));
   Assets=JSON.parse(localStorage.getItem(assetsKey));
 }
-window.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState==='visible'){ catchUp(); renderAll(); }
-  localStorage.setItem(lastKey, String(now()));
-});
-window.addEventListener('beforeunload', ()=>localStorage.setItem(lastKey, String(now())));
 
 /* UI header/stats */
 function renderHeader(){
@@ -346,12 +369,16 @@ function drawChart(tf='1h'){
   });
 }
 
-/* Live tick (foreground) */
+/* Live tick (deterministisch, 1 stap vooruit als de wereldtijd het zegt) */
 function liveTick(){
   let A=JSON.parse(localStorage.getItem(assetsKey));
-  stepOnce(A);
-  Assets=A;
-  localStorage.setItem(lastKey, String(now()));
+  const target = globalStep();
+  const last = parseInt(localStorage.getItem(lastKey) || "0", 10);
+  if (target > last) {
+    stepOnceDeterministic(A, last + 1);
+    localStorage.setItem(lastKey, String(last + 1));
+    Assets = A;
+  }
 }
 
 /* UI events */
@@ -463,11 +490,11 @@ function renderAll(){
 
 /* Boot */
 function boot(){
-  catchUp();
+  catchUp();          // bouw deterministische historie tot nu
   renderAll();
   document.getElementById('feeBuy').textContent = (Fee*100).toFixed(2)+'%';
   document.getElementById('buyBits').dispatchEvent(new Event('input'));
-  setInterval(()=>{        // foreground live
+  setInterval(()=>{   // foreground live — precies 1 stap als tijd is verstreken
     if(document.visibilityState==='visible'){
       liveTick();
       renderAll();
@@ -475,6 +502,13 @@ function boot(){
   }, TICK_MS);
 }
 boot();
+
+/* Zorgen dat lastKey bij wisselen van tab netjes wordt gezet */
+window.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible'){ catchUp(); renderAll(); }
+  localStorage.setItem(lastKey, String(globalStep()));
+});
+window.addEventListener('beforeunload', ()=>localStorage.setItem(lastKey, String(globalStep())));
 </script>
 </body>
 </html>
