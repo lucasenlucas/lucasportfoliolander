@@ -79,43 +79,30 @@
   </div>
   <div id="alert">ABORT...</div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+  <script>
+    const historyEl = document.querySelector('#terminal-history');
+    const terminalText = document.querySelector('#terminal-text');
+    const alertBox = document.querySelector('#alert');
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyClKhiiSVZ3sj_6dqzxZAT9owaFHfJHrnk",
-      authDomain: "portfolio-lucas-8461a.firebaseapp.com",
-      projectId: "portfolio-lucas-8461a",
-      storageBucket: "portfolio-lucas-8461a.appspot.com",
-      messagingSenderId: "474096039312",
-      appId: "1:474096039312:web:5cee76f8389f9c02e1af15"
+    const routes = {
+      "1": "https://portfolio.lucasmangroelal.nl",
+      "2": "https://lucaskit.lucasmangroelal.nl",
+      "3": "https://paprika-verhalen.lucasmangroelal.nl",
+      "4": "https://brainrot-news.lucasmangroelal.nl"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const routes = {};
     const startupMessages = [
       "Booting system...",
       "Loading config...",
       "Ready.",
-      "Voer het nummer in van je keuze:"
+      "Voer het nummer in van je keuze:",
+      "[1] Bekijk mijn portfolio",
+      "[2] Open LucasKit",
+      "[3] Open Paprika Verhalen",
+      "[4] Open Brainrot Nieuws"
     ];
 
-    const historyEl = document.querySelector('#terminal-history');
-    const terminalText = document.querySelector('#terminal-text');
-    const alertBox = document.querySelector('#alert');
     let currentText = "";
-
-    async function loadLinks() {
-      const snapshot = await getDocs(collection(db, "terminalLinks"));
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        startupMessages.push(`[${data.nummer}] ${data.label}`);
-        routes[data.nummer] = data.url;
-      });
-      showStartup();
-    }
 
     function delayMsg(msg, delay) {
       setTimeout(() => {
@@ -139,7 +126,7 @@
         window.location.href = routes[option];
       } else {
         const li = document.createElement("li");
-        li.textContent = "Ongeldige invoer. Kies een geldig nummer.";
+        li.textContent = "Ongeldige invoer. Kies 1 t/m 4.";
         historyEl.appendChild(li);
         scrollToBottom();
       }
@@ -166,7 +153,7 @@
       terminalText.textContent = currentText;
     });
 
-    loadLinks();
+    showStartup();
   </script>
 </body>
 </html>
