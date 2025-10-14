@@ -61,7 +61,7 @@
     /* Footer hint */
     .hint{color:var(--muted); margin-top:16px; font-size:.92rem}
 
-    /* Bits ticker badge ( +X Bits popup ) */
+    /* Coins ticker badge ( +X Coins popup ) */
     .bits-ticker{display:inline-flex;align-items:center;gap:8px}
     .bits-anim{
       font-weight:800; padding:2px 8px; border-radius:999px; font-size:.85rem;
@@ -104,7 +104,7 @@
   </style>
 </head>
 <body>
-  <!-- Bits -->
+  <!-- Bits (onderliggende store) -->
   <script src="js/bits.js"></script>
 
   <!-- Topbar -->
@@ -118,7 +118,7 @@
       </div>
       <div class="spacer"></div>
       <div class="balance">
-        Bits: <span id="bitsValue">0</span>
+        Coins: <span id="bitsValue">0</span>
         <span id="bitsDelta" class="bits-anim" aria-hidden="true"></span>
         <!-- 🔥 Streak badge in header -->
         <span id="headerStreak" class="streak-badge" title="Dagelijkse streak">
@@ -131,7 +131,7 @@
   <!-- Content -->
   <main class="container">
     <h1 style="margin:0 0 6px">SGDC Games</h1>
-    <p class="hint">BELANGRIJKE UPDATE: vanaf nu sgdc games alleen maar losse games niks meer zit gekoppeld en er zijn geen gok spellen meer. Sorry</p>
+    <p class="hint">BELANGRIJKE UPDATE: vanaf nu SGDC Games alleen losse games, niets is gekoppeld en er zijn geen gokspellen meer. Sorry!</p>
 
     <section class="grid" aria-label="Games">
       <a class="game-btn" href="snake/" role="button" aria-label="Speel Snake">
@@ -139,37 +139,24 @@
         <div class="g-body"><strong>Snake</strong><span class="pill">Nu spelen</span></div>
       </a>
 
-      <a class="game-btn" href="mines/" role="button" aria-label="Speel Diamanten roof">
+      <a class="game-btn" href="mines-off/" role="button" aria-label="Speel Mines">
         <div class="g-thumb" style="background:linear-gradient(160deg,#ffe36d,#ff9f4d)">Mines</div>
-        <div class="g-body"><strong>Mines</strong><span class="pill">Nu spelen</span></div>
+        <div class="g-body"><strong>Mines --tijdelijk offline</strong><span class="pill">Tijdelijk Offline</span></div>
       </a>
 
-      <a class="game-btn soon" href="#" role="button" aria-disabled="true">
-        <div class="g-thumb" style="background:linear-gradient(160deg,#7b6dff,#f453a1)">Plinko</div>
-        <div class="g-body"><strong>Plinko</strong><span class="pill">Komt binnenkort</span></div>
-      </a>
-
-      <!-- ✅ minecraft unlocked -->
-      <a class="game-btn" href="Minecraft/index.html" role="button" aria-label="Speel Crash">
+      <!-- Minecraft -->
+      <a class="game-btn" href="Minecraft/index.html" role="button" aria-label="Speel Minecraft">
         <div class="g-thumb" style="background:linear-gradient(160deg,#4ad8d0,#7b6dff)">Minecraft</div>
         <div class="g-body"><strong>Minecraft</strong><span class="pill">NIEUW!! Speel nu</span></div>
       </a>
 
-      <!-- ✅ Stock Market unlocked -->
+      <!-- Market simulator -->
       <a class="game-btn" href="market/" role="button" aria-label="Open Market simulator">
-        <div class="g-thumb" style="background:linear-gradient(160deg,#ffe36d,#ff9f4d)">Market simulator </div>
-        <div class="g-body"><strong>Market simulator </strong><span class="pill">Nu open</span></div>
+        <div class="g-thumb" style="background:linear-gradient(160deg,#ffe36d,#ff9f4d)">Market simulator</div>
+        <div class="g-body"><strong>Market simulator</strong><span class="pill">Nu open</span></div>
       </a>
 
-      <a class="game-btn" href="cube/" role="button" aria-label="The Cube">
-        <div class="g-thumb" style="background:linear-gradient(160deg,#ffe36d,#ff9f4d)">Mines</div>
-        <div class="g-body"><strong>the cube</strong><span class="pill">NIEUW!! Nu spelen</span></div>
-      </a>
-
-      <a class="game-btn soon" href="#" role="button" aria-disabled="true">
-        <div class="g-thumb" style="background:linear-gradient(160deg,#7b6dff,#f453a1)">Roulette</div>
-        <div class="g-body"><strong>comming soon!!</strong><span class="pill">Komt binnenkort</span></div>
-      </a>
+      <!-- Verwijderd: Plinko, The Cube, Roulette -->
     </section>
   </main>
 
@@ -191,7 +178,7 @@
   </div>
 
   <script>
-    // ===== Bits header koppelen + smooth oplopen en +X badge =====
+    // ===== Coins header koppelen + smooth oplopen en +X badge =====
     (function(){
       const bitsSpan = document.getElementById('bitsValue');
       const badge = document.getElementById('bitsDelta');
@@ -213,14 +200,14 @@
       }
       function flashPlus(amount){
         if (amount<=0) return;
-        badge.textContent = `+${amount} Bits`;
+        badge.textContent = `+${amount} Coins`;
         badge.classList.add('show');
         setTimeout(()=>badge.classList.remove('show'), 1400);
       }
-      // Koppel aan Bits API
+      // Koppel aan onderliggende Bits store (blijft bestaan)
       try{
         Bits.onChange(v => animateTo(v, 650));
-        // maak helper voor streak-script
+        // helper voor streak-script
         window.__bitsFlash = flashPlus;
       }catch(e){
         console.warn('Bits.onChange niet beschikbaar', e);
@@ -358,13 +345,13 @@
         const reward = computeReward(streak, todayKey);
         const note = flavorNote(streak, todayKey);
 
-        // Bits + header anim
+        // Coins via onderliggende Bits-store
         try{ Bits.add(reward); }catch(e){ console.warn('Bits.add niet beschikbaar', e); }
         if (window.__bitsFlash) window.__bitsFlash(reward);
 
         // Modal types
         if(streak===100){
-          openMilestone(streak, reward, '💯 Dag 100 — Legend status! 100 Bits geclaimd!', 3600, 200);
+          openMilestone(streak, reward, '💯 Dag 100 — Legend status! 100 coins geclaimd!', 3600, 200);
         }else if(streak%7===0 || streak===30 || streak===50){
           openMilestone(streak, reward, note, 2400, 140);
         }else{
@@ -382,14 +369,12 @@
     })();
   </script>
 
-  <!-- Bits aan header koppeling als fallback (als Bits.onChange mist, initialiseer waarde) -->
+  <!-- Coins aan header koppeling als fallback (als Bits.onChange mist, initialiseer waarde) -->
   <script>
-    (function initBitsHeader(){
+    (function initCoinsHeader(){
       const el = document.getElementById('bitsValue');
       if(!el) return;
       try{
-        // probeer huidige waarde uit Bits store op te halen als API dat biedt
-        // anders laat de onChange uit eerdere script het snel bijwerken
         if (typeof Bits?.get === 'function') {
           el.textContent = Bits.get();
         }
