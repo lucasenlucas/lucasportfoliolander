@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lucas Learn — HTML Missions</title>
+  <meta name="description" content="Lucas Learn: gamified HTML-platform met missies, streaks en projecten voor fictieve klanten." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      /* Light mode tokens */
+      --bg:#f6f8ff; --panel:#ffffff; --panel-2:#eef2ff; --ink:#0b1220; --muted:#566285;
+      --brand:#6c63ff; --brand-2:#a79aff; --accent:#ffb547; --good:#22c55e; --bad:#ef4444;
+      --ring: 0 0 0 3px rgba(108,99,255,.15);
+      --radius:18px; --shadow:0 12px 35px rgba(17, 21, 47, .08);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#fff);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink)}
+    a{color:inherit}
+
+    /* App shell */
+    .app{display:grid;grid-template-columns:280px 1fr;grid-template-rows:72px 1fr;gap:16px;max-width:1400px;margin:0 auto;padding:16px}
+    header{grid-column:1/3;background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:space-between;padding:12px 18px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:42px;height:42px;border-radius:12px;background:conic-gradient(from 180deg at 50% 50%, var(--brand), var(--brand-2));display:grid;place-items:center;color:#fff;font-weight:800;letter-spacing:.5px}
+    h1{font-size:18px;margin:0}
+    .stats{display:flex;align-items:center;gap:12px}
+    .chip{display:flex;align-items:center;gap:8px;background:var(--panel-2);padding:8px 12px;border-radius:999px;font-weight:600}
+    .chip .dot{width:10px;height:10px;border-radius:999px}
+    .chip .dot.brand{background:var(--brand)}
+    .chip .dot.good{background:var(--good)}
+    .chip .dot.fire{background:linear-gradient(45deg,#ff7300,#ffd600)}
+
+    /* Sidebar */
+    aside{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:14px}
+    .menu h2{font-size:14px;margin:6px 0 8px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+    .btn{display:flex;align-items:center;gap:10px;border:1px solid #e8ecff;background:#fff;border-radius:14px;padding:12px 14px;font-weight:600;cursor:pointer;transition:.2s}
+    .btn:hover{transform:translateY(-1px);box-shadow:var(--ring)}
+    .btn.active{border-color:var(--brand);background:linear-gradient(180deg,#fff,#f6f6ff)}
+
+    /* Main */
+    main{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .search{display:flex;gap:10px}
+    input[type="search"]{padding:10px 12px;border:1px solid #e5e9ff;border-radius:12px;min-width:260px;font:inherit}
+    .filter{padding:10px 12px;border:1px solid #e5e9ff;border-radius:12px;background:#fff;font-weight:600}
+
+    /* Missions grid */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+    .card{background:linear-gradient(180deg,#fff,#f9faff);border:1px solid #e7eaff;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:12px;cursor:pointer;transition:.2s}
+    .card:hover{transform:translateY(-2px);box-shadow:var(--ring)}
+    .badge{font-size:12px;background:var(--panel-2);padding:4px 8px;border-radius:999px;color:#39456b;width:max-content}
+    .title{font-weight:800}
+    .meta{display:flex;gap:10px;font-size:12px;color:var(--muted)}
+
+    /* Lesson view */
+    .lesson{display:none}
+    .lesson.active{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+    .pane{background:linear-gradient(180deg,#fff,#f8f9ff);border:1px solid #e7eaff;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:520px}
+    .tabs{display:flex;gap:8px}
+    .tab{padding:10px 12px;border:1px solid #e5e9ff;background:#fff;border-radius:12px;font-weight:700;cursor:pointer}
+    .tab.active{background:var(--brand);color:#fff;border-color:transparent}
+    textarea#editor{width:100%;height:360px;resize:vertical;border:1px solid #dde3ff;border-radius:12px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:14px}
+    iframe#preview{flex:1;border:1px solid #dde3ff;border-radius:12px;background:#fff}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .primary{background:var(--brand);color:#fff;border:none;padding:10px 14px;border-radius:12px;font-weight:800;cursor:pointer}
+    .ghost{background:#fff;border:1px solid #e5e9ff;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
+    .success{color:var(--good);font-weight:800}
+
+    /* Achievements */
+    .ach-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+    .ach{border:1px dashed #d7dbff;background:#fff;border-radius:16px;padding:14px}
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .app{grid-template-columns:1fr;grid-template-rows:72px auto auto;gap:12px;padding:12px}
+      aside{order:2}
+      main{order:3}
+      header{order:1}
+      .lesson.active{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">LL</div>
+        <div>
+          <h1>Lucas Learn — HTML Missions</h1>
+          <div style="font-size:12px;color:var(--muted)">Leer HTML met missies, streaks en echte (fictieve) klantprojecten.</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="chip" title="Dagelijkse streak">
+          <span class="dot fire"></span>
+          <span><span id="streak">0</span> dag streak</span>
+        </div>
+        <div class="chip" title="Ervaring (XP)">
+          <span class="dot brand"></span>
+          <span><span id="xp">0</span> XP</span>
+        </div>
+        <div class="chip" title="Voltooide missies">
+          <span class="dot good"></span>
+          <span><span id="completed">0</span>/30</span>
+        </div>
+      </div>
+    </header>
+
+    <aside>
+      <div class="menu">
+        <h2>Hoofdmenu</h2>
+        <button class="btn active" data-view="missions">🎮 Missies spelen</button>
+        <button class="btn" data-view="achievements">🏆 Achievements</button>
+        <button class="btn" data-view="practice">🧪 Playground</button>
+        <button class="btn" data-view="settings">⚙️ Instellingen</button>
+      </div>
+      <div class="menu">
+        <h2>Dagelijkse uitdagingen</h2>
+        <button class="btn" id="dailyCheck">🔥 Daily check-in</button>
+        <button class="btn" id="quickChallenge">⚡ 5‑min mini‑missie</button>
+      </div>
+      <div class="menu">
+        <h2>Tips</h2>
+        <div style="background:var(--panel-2);border-radius:14px;padding:12px;color:#33406a">
+          Gebruik <strong>Alt/Option + Enter</strong> om je code direct te runnen in de preview.
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div class="search">
+          <input type="search" id="q" placeholder="Zoek missie, onderwerp of klant…" />
+          <select class="filter" id="filter">
+            <option value="all">Alle moeilijkheden</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Gevorderd</option>
+            <option value="advanced">Expert</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="ghost" id="resetProgress">Reset voortgang</button>
+          <button class="primary" id="resumeBtn">⏯️ Ga verder</button>
+        </div>
+      </div>
+
+      <!-- Missions view -->
+      <section id="view-missions">
+        <div class="grid" id="missionsGrid"></div>
+      </section>
+
+      <!-- Lesson view -->
+      <section id="view-lesson" class="lesson">
+        <div class="pane">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <div>
+              <div class="badge" id="lessonBadge">Beginner</div>
+              <div class="title" id="lessonTitle">Missie titel</div>
+              <div class="meta" id="lessonMeta">⏱️ ~15 min • 🎯 +50 XP</div>
+            </div>
+            <button class="ghost" id="backToMissions">← Terug</button>
+          </div>
+          <div class="tabs">
+            <button class="tab active" data-tab="overview">Overzicht</button>
+            <button class="tab" data-tab="code">Code</button>
+            <button class="tab" data-tab="preview">Preview</button>
+            <button class="tab" data-tab="submit">Inleveren</button>
+          </div>
+          <div id="tab-overview">
+            <p id="lessonTheory">Theorie…</p>
+            <div style="background:var(--panel-2);padding:12px;border-radius:12px">
+              <strong>Klantbriefing</strong>
+              <p id="clientBrief">Briefing…</p>
+            </div>
+            <ul id="lessonTasks"></ul>
+          </div>
+          <div id="tab-code" style="display:none">
+            <textarea id="editor" spellcheck="false"></textarea>
+            <div class="row">
+              <button class="primary" id="runCode">▶ Run (Alt/Option+Enter)</button>
+              <button class="ghost" id="resetCode">Herstel startcode</button>
+              <div id="saveStatus" style="margin-left:auto;color:var(--muted)">Automatisch opgeslagen</div>
+            </div>
+          </div>
+          <div id="tab-submit" style="display:none">
+            <p>Ben je klaar? Klik hieronder om de missie in te leveren. Je krijgt direct XP en je streak blijft lopen. 🎉</p>
+            <button class="primary" id="submitLesson">✅ Lever in</button>
+            <div id="submitMsg"></div>
+          </div>
+        </div>
+        <div class="pane">
+          <iframe id="preview" title="Live preview"></iframe>
+          <div class="row">
+            <button class="ghost" data-tab="code">🧑‍💻 Programmeren</button>
+            <button class="primary" data-tab="preview">🌐 Site bekijken</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Achievements view -->
+      <section id="view-achievements" style="display:none">
+        <h2 style="margin:0 0 10px">Badges & mijlpalen</h2>
+        <div class="ach-list" id="achievementsList"></div>
+      </section>
+
+      <!-- Practice view -->
+      <section id="view-practice" style="display:none">
+        <h2 style="margin:0 0 10px">Playground</h2>
+        <p>Vrij experimenteren met HTML/CSS/JS. Geen scoring, wel leuk 😄</p>
+        <div class="lesson active" style="display:grid">
+          <div class="pane">
+            <textarea id="freeEditor" spellcheck="false"><!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <title>Playground</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:20px}
+    h1{color:#6c63ff}
+  </style>
+</head>
+<body>
+  <h1>Hallo, Playground!</h1>
+  <p>Schrijf hier je eigen code en bekijk het rechts.</p>
+</body>
+</html></textarea>
+            <div class="row"><button class="primary" id="runFree">▶ Run</button></div>
+          </div>
+          <div class="pane"><iframe id="freePreview"></iframe></div>
+        </div>
+      </section>
+
+      <!-- Settings view -->
+      <section id="view-settings" style="display:none">
+        <h2 style="margin:0 0 10px">Instellingen</h2>
+        <div class="grid">
+          <div class="card">
+            <div class="title">Light mode</div>
+            <div class="meta">Lucas Learn gebruikt standaard light mode met zachte kleuren.</div>
+          </div>
+          <div class="card">
+            <div class="title">Data & privacy</div>
+            <div class="meta">Voortgang en code worden alleen lokaal opgeslagen (localStorage).</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+  // ------------ Data: 30 missies (HTML curriculum) ------------
+  const LESSONS = [
+    {
+      id:1, level:'beginner', xp:50, time:'15 min', title:'Wat is HTML?',
+      theory:'HTML is de taal waarmee je de structuur van webpagina\'s beschrijft. Het bestaat uit elementen (tags) zoals <html>, <head>, <body>, en inhoud zoals koppen, paragrafen en links.',
+      tasks:[
+        'Lees de uitleg en bekijk de voorbeeldcode.',
+        'Maak een simpele pagina met een titel en een paragraaf.'
+      ],
+      client:'Klant: <strong>Café Pixel</strong> wil een mini-landing met hun naam en slogan.',
+      starter:`<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <title>Mijn eerste webpagina</title>
+</head>
+<body>
+  <h1>Hallo wereld</h1>
+  <p>Dit is mijn eerste paragraaf.</p>
+</body>
+</html>`
+    },
+    {
+      id:2, level:'beginner', xp:70, time:'20 min', title:'<!DOCTYPE>, koppen & <p>',
+      theory:'De <!DOCTYPE html> vertelt de browser dat je HTML5 gebruikt. Koppen (<h1> t/m <h6>) geven hiërarchie. <p> maakt paragrafen.',
+      tasks:[
+        'Voeg een juiste doctype toe.',
+        'Maak een h1, h2 en enkele paragrafen met tekst.'
+      ],
+      client:'Klant: <strong>Nieuwsflash</strong> wil een artikel met titel, subtitel en tekst.',
+      starter:`<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <title>Artikel</title>
+</head>
+<body>
+  <!-- Titel, subtitel en tekst hier -->
+</body>
+</html>`
+    },
+    {id:3, level:'beginner', xp:70, time:'20 min', title:'Lijsten: <ul>, <ol>, <li>', theory:'Met <ul> maak je ongenummerde lijsten, met <ol> genummerde. <li> is een item.', tasks:['Maak een boodschappenlijst (ul).','Maak een top-3 (ol).'], client:'Klant: <strong>ShopBuddy</strong> wil een boodschappen- en top 3-lijst.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Lijsten</title></head><body></body></html>`},
+    {id:4, level:'beginner', xp:70, time:'20 min', title:'Links & afbeeldingen', theory:'Gebruik <a href> voor links en <img src alt> voor afbeeldingen. Alt-tekst is belangrijk voor toegankelijkheid.', tasks:['Link naar een andere pagina.','Voeg een afbeelding met alt toe.'], client:'Klant: <strong>TravelBee</strong> wil een hero-afbeelding en een knop "Boek nu".', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Link & Img</title></head><body></body></html>`},
+    {id:5, level:'beginner', xp:70, time:'20 min', title:'Structuur: <header>, <main>, <footer>', theory:'Semantische tags maken je pagina begrijpelijker voor mens en machine.', tasks:['Maak een header met logo-tekst.','Voeg een footer met contact toe.'], client:'Klant: <strong>Studio Nova</strong> wil een nette landingspagina-structuur.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Structuur</title></head><body></body></html>`},
+    {id:6, level:'beginner', xp:80, time:'25 min', title:'Basis CSS invoegen', theory:'Je voegt CSS toe met <style> in de <head> of via een .css-bestand. Gebruik selectors om elementen te stijlen.', tasks:['Zet een lettertype en achtergrondkleur.','Stijl koppen en paragrafen.'], client:'Klant: <strong>ColorPop</strong> wil een vrolijke stijl.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Stijlen</title><style>body{font-family:system-ui}</style></head><body><h1>Titel</h1><p>Tekst</p></body></html>`},
+    {id:7, level:'beginner', xp:80, time:'25 min', title:'Tabellen', theory:'Gebruik <table>, <thead>, <tbody>, <tr>, <th>, <td> voor gestructureerde gegevens.', tasks:['Maak een prijstabel.'], client:'Klant: <strong>Bistro 27</strong> wil een menukaart-tabel.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Tabel</title></head><body></body></html>`},
+    {id:8, level:'beginner', xp:80, time:'25 min', title:'Formulieren: input & label', theory:'Formulieren gebruiken <form>, <label>, <input> etc. Het attribuut for moet overeenkomen met id.', tasks:['Maak een contactformulier.'], client:'Klant: <strong>FixIt</strong> wil een reparatie-aanvraagformulier.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Form</title></head><body></body></html>`},
+    {id:9, level:'beginner', xp:80, time:'25 min', title:'Metadata & favicons', theory:'<meta> tags voor charset, viewport. Favicon via <link rel="icon">.', tasks:['Voeg viewport toe.','Plaats een (nep)favicon-link.'], client:'Klant: <strong>AppSeed</strong> wil een mobile‑friendly header.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Meta</title></head><body></body></html>`},
+    {id:10, level:'beginner', xp:90, time:'30 min', title:'Flexibele lay-outs: intro CSS Flexbox', theory:'Met display:flex regel je rijen/kolommen, gap, align en justify.', tasks:['Maak 3 kaarten naast elkaar.'], client:'Klant: <strong>Cardly</strong> wil een features‑sectie.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Flex</title><style>body{font-family:system-ui}</style></head><body></body></html>`},
+    {id:11, level:'intermediate', xp:100, time:'30 min', title:'Navigatiebalk', theory:'Bouw een responsieve navigatie met een lijst links.', tasks:['Nav met 4 links en active‑staat.'], client:'Klant: <strong>Northwave</strong> wil een topnav.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Nav</title></head><body></body></html>`},
+    {id:12, level:'intermediate', xp:100, time:'30 min', title:'Hero sectie', theory:'Een hero heeft een grote kop, subkop en call‑to‑action.', tasks:['Bouw een hero met knoppen.'], client:'Klant: <strong>Cloudy</strong> wil een SaaS-hero.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Hero</title></head><body></body></html>`},
+    {id:13, level:'intermediate', xp:110, time:'35 min', title:'Semantiek: <article>, <section>, <aside>', theory:'Gebruik passende tags om betekenis te geven.', tasks:['Maak een blog lay‑out.'], client:'Klant: <strong>WriteIt</strong> blogpagina.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Semantiek</title></head><body></body></html>`},
+    {id:14, level:'intermediate', xp:110, time:'35 min', title:'Toegankelijkheid (alt, label, contrast)', theory:'A11y is essentieel: alt‑teksten, labels en voldoende contrast.', tasks:['Controleer alt en labels.'], client:'Klant: <strong>OpenCity</strong> wil AA‑contrast.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>A11y</title></head><body></body></html>`},
+    {id:15, level:'intermediate', xp:120, time:'40 min', title:'CSS kleuren & variabelen', theory:'Gebruik :root met variabelen (custom properties) voor thema\'s.', tasks:['Maak licht kleurenthema.'], client:'Klant: <strong>ThemeCo</strong> wil kleuren tokens.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Kleuren</title></head><style>:root{--bg:#fff;--ink:#111}</style><body></body></html>`},
+    {id:16, level:'intermediate', xp:120, time:'40 min', title:'Afbeeldingen responsief', theory:'Met max-width:100% en srcset/sizes schaal je beelden netjes.', tasks:['Maak afbeeldingen mobielvriendelijk.'], client:'Klant: <strong>FotoFox</strong> gallerij.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Responsive img</title></head><body></body></html>`},
+    {id:17, level:'intermediate', xp:130, time:'45 min', title:'Formulieren: select, textarea, buttons', theory:'Meer invoertypen en knoppen met type="submit".', tasks:['Bouw feedbackformulier.'], client:'Klant: <strong>HappyHelp</strong> wil feedback.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Form 2</title></head><body></body></html>`},
+    {id:18, level:'intermediate', xp:130, time:'45 min', title:'CSS Grid basis', theory:'Grid is krachtig voor 2D‑lay‑outs: grid-template‑columns/rows, gap.', tasks:['Portfolio raster met 6 kaarten.'], client:'Klant: <strong>GalleryPro</strong> wil een grid.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Grid</title><style>body{font-family:system-ui}</style></head><body></body></html>`},
+    {id:19, level:'intermediate', xp:140, time:'50 min', title:'Bestandsstructuur & assets', theory:'Orden je project: /images, /css, /js voor overzicht.', tasks:['Maak nette mappen & paden.'], client:'Klant: <strong>CleanDesk</strong> wil structuur.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Structuur</title></head><body></body></html>`},
+    {id:20, level:'intermediate', xp:140, time:'50 min', title:'SVG iconen insluiten', theory:'SVG is scherp en klein. Je kunt <svg> inline zetten.', tasks:['Plaats 3 icons met <svg>.'], client:'Klant: <strong>Iconify</strong> wil vectoricons.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>SVG</title></head><body></body></html>`},
+    {id:21, level:'advanced', xp:150, time:'55 min', title:'Kleine componenten bouwen', theory:'Maak herbruikbare kaarten/knoppen met CSS-classes.', tasks:['Maak een card‑component.'], client:'Klant: <strong>KitBlocks</strong> wil UI‑set.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Componenten</title></head><body></body></html>`},
+    {id:22, level:'advanced', xp:150, time:'55 min', title:'Media queries (mobile‑first)', theory:'@media (min-width: …) voor responsiviteit.', tasks:['Maak layout die schaalt naar mobiel/desktop.'], client:'Klant: <strong>FitUp</strong> wil mobile‑first.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Media</title></head><body></body></html>`},
+    {id:23, level:'advanced', xp:160, time:'60 min', title:'Form validatie (HTML‑attributes)', theory:'required, minlength, type zorgen voor basisvalidatie.', tasks:['Maak een signup met constraints.'], client:'Klant: <strong>JoinMe</strong> wil een signup‑form.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Validatie</title></head><body></body></html>`},
+    {id:24, level:'advanced', xp:160, time:'60 min', title:'Embedded content (iframe, video)', theory:'<iframe> voor externe sites, <video> voor media.', tasks:['Embed een video & legende.'], client:'Klant: <strong>EduCast</strong> wil een lespagina.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Embed</title></head><body></body></html>`},
+    {id:25, level:'advanced', xp:170, time:'65 min', title:'Micro‑interacties (transitions)', theory:'Gebruik transition en :hover voor feedback.', tasks:['Animeer knoppen en links.'], client:'Klant: <strong>FlowUI</strong> wil zachte animaties.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Transitions</title><style>button{transition:.2s}</style></head><body></body></html>`},
+    {id:26, level:'advanced', xp:170, time:'65 min', title:'CSS posities (relative/absolute)', theory:'Positionering voor badges, overlays en modals.', tasks:['Maak een badge op een kaart.'], client:'Klant: <strong>BadgeLab</strong> wil tags op cards.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Position</title></head><body></body></html>`},
+    {id:27, level:'advanced', xp:180, time:'70 min', title:'Sticky header & anchor links', theory:'Sticky elementen blijven plakken bij scrollen.', tasks:['Maak een docs‑pagina met inhoud.'], client:'Klant: <strong>DocuPro</strong> wil navigatie.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Sticky</title></head><body></body></html>`},
+    {id:28, level:'advanced', xp:180, time:'70 min', title:'Favicon, Open Graph & SEO‑basics', theory:'Voeg social previews en meta‑beschrijving toe.', tasks:['Maak een nette head‑sectie.'], client:'Klant: <strong>ShareCard</strong> wil mooie previews.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>SEO</title></head><body></body></html>`},
+    {id:29, level:'advanced', xp:190, time:'75 min', title:'Formulieren stijlen (CSS)', theory:'Stijl inputs, focus‑states en buttons voor UX.', tasks:['Bouw een mooi contactformulier.'], client:'Klant: <strong>GlowForms</strong> wil nette UI.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Form style</title></head><body></body></html>`},
+    {id:30, level:'advanced', xp:200, time:'90 min', title:'Eindopdracht: mini‑site', theory:'Combineer alles: hero, nav, grid, formulier, footer.', tasks:['Bouw een 3‑pagina mini‑site.'], client:'Klant: <strong>BrightLabs</strong> wil een minisite met contact.', starter:`<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Mini‑site</title></head><body></body></html>`},
+  ];
+
+  // ------------ State & persistence ------------
+  const $ = (q,el=document)=>el.querySelector(q);
+  const $$ = (q,el=document)=>[...el.querySelectorAll(q)];
+  const state = {
+    xp: Number(localStorage.getItem('ll_xp')||0),
+    completed: JSON.parse(localStorage.getItem('ll_completed')||'[]'),
+    lastLesson: Number(localStorage.getItem('ll_lastLesson')||1),
+    streak: Number(localStorage.getItem('ll_streak')||0),
+    lastCheck: localStorage.getItem('ll_lastCheck')||'',
+  };
+  function saveState(){
+    localStorage.setItem('ll_xp', state.xp);
+    localStorage.setItem('ll_completed', JSON.stringify(state.completed));
+    localStorage.setItem('ll_lastLesson', state.lastLesson);
+    localStorage.setItem('ll_streak', state.streak);
+    localStorage.setItem('ll_lastCheck', state.lastCheck);
+  }
+  function fmtDate(d=new Date()){return d.toISOString().slice(0,10)}
+
+  // ------------ UI: header counters ------------
+  function refreshCounters(){
+    $('#xp').textContent = state.xp;
+    $('#completed').textContent = state.completed.length;
+    $('#streak').textContent = state.streak;
+  }
+
+  // ------------ Missions grid ------------
+  function tagColor(level){
+    return level==='beginner'?'#e8f5e9':(level==='intermediate'?'#fff8e1':'#fde8ef');
+  }
+  function renderMissions(filter='all', query=''){
+    const grid = $('#missionsGrid');
+    grid.innerHTML = '';
+    LESSONS.filter(l=>filter==='all'||l.level===filter)
+      .filter(l=>{
+        const s=(l.title+' '+l.theory+' '+l.client).toLowerCase();
+        return s.includes(query.toLowerCase())
+      })
+      .forEach(l=>{
+        const card = document.createElement('div');
+        card.className='card';
+        card.innerHTML = `
+          <div class="badge" style="background:${tagColor(l.level)}">${l.level}</div>
+          <div class="title">#${l.id} ${l.title}</div>
+          <div class="meta">⏱️ ${l.time} • 🎯 +${l.xp} XP</div>
+          <div class="meta">${state.completed.includes(l.id)?'✅ Voltooid':'🚀 Klaar om te starten'}</div>
+        `;
+        card.addEventListener('click', ()=>openLesson(l.id));
+        grid.appendChild(card);
+      });
+  }
+
+  // ------------ Lesson view ------------
+  let currentLesson=null; let originalCode='';
+  function openLesson(id){
+    const l = LESSONS.find(x=>x.id===id); if(!l) return;
+    currentLesson = l; state.lastLesson = id; saveState();
+    $('#lessonBadge').textContent = l.level;
+    $('#lessonTitle').textContent = `#${l.id} ${l.title}`;
+    $('#lessonMeta').textContent = `⏱️ ${l.time} • 🎯 +${l.xp} XP`;
+    $('#lessonTheory').textContent = l.theory.replace(/<[^>]+>/g,'');
+    $('#clientBrief').innerHTML = l.client;
+    const ul = $('#lessonTasks'); ul.innerHTML=''; l.tasks.forEach(t=>{const li=document.createElement('li'); li.textContent=t; ul.appendChild(li)});
+
+    // code
+    originalCode = l.starter;
+    const key = `ll_code_${l.id}`;
+    const saved = localStorage.getItem(key);
+    $('#editor').value = saved || l.starter;
+    $('#preview').srcdoc = saved || l.starter;
+
+    // switch view
+    $('#view-missions').style.display='none';
+    $('#view-achievements').style.display='none';
+    $('#view-practice').style.display='none';
+    $('#view-settings').style.display='none';
+    $('#view-lesson').classList.add('active');
+
+    // tabs reset
+    setActiveTab('overview');
+  }
+
+  function setActiveTab(name){
+    $$('#view-lesson .tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+    ['overview','code','preview','submit'].forEach(id=>{
+      $(`#tab-${id}`).style.display = (id===name?'block':'none');
+    });
+    if(name==='preview') runPreview();
+  }
+
+  function runPreview(){
+    const val = $('#editor').value;
+    $('#preview').srcdoc = val;
+    // autosave
+    const key = `ll_code_${currentLesson.id}`;
+    localStorage.setItem(key, val);
+    $('#saveStatus').textContent = 'Opgeslagen ✓';
+    setTimeout(()=>$('#saveStatus').textContent='Automatisch opgeslagen', 1200);
+  }
+
+  // ------------ Submit / XP / streak ------------
+  function submitLesson(){
+    if(!currentLesson) return;
+    if(!state.completed.includes(currentLesson.id)){
+      state.completed.push(currentLesson.id);
+      state.xp += currentLesson.xp;
+      // Award achievement checks
+      maybeUnlockAchievements();
+    }
+    // streak update (1 per dag)
+    const today = fmtDate();
+    if(state.lastCheck!==today){
+      state.lastCheck=today; state.streak = Math.max(1, state.streak+1);
+    }
+    saveState(); refreshCounters();
+    $('#submitMsg').innerHTML = `<div class="success">Top! Missie voltooid. +${currentLesson.xp} XP toegevoegd. 🔥 Streak: ${state.streak}</div>`;
+  }
+
+  // ------------ Achievements ------------
+  const ACH = [
+    {id:'first', name:'Eerste stap', desc:'Voltooi je eerste missie', rule: s=>s.completed.length>=1},
+    {id:'five', name:'Vijf op rij', desc:'Voltooi 5 missies', rule: s=>s.completed.length>=5},
+    {id:'ten', name:'Tiener', desc:'Voltooi 10 missies', rule: s=>s.completed.length>=10},
+    {id:'streak3', name:'Warmte', desc:'Streak 3 dagen', rule: s=>s.streak>=3},
+    {id:'xp500', name:'XP‑bikkel', desc:'500 XP behaald', rule: s=>s.xp>=500},
+    {id:'all', name:'100% HTML‑held', desc:'Voltooi alle 30 missies', rule: s=>s.completed.length===30},
+  ];
+  function getUnlocked(){return JSON.parse(localStorage.getItem('ll_ach')||'[]')}
+  function setUnlocked(arr){localStorage.setItem('ll_ach', JSON.stringify(arr))}
+  function maybeUnlockAchievements(){
+    const have = new Set(getUnlocked());
+    ACH.forEach(a=>{ if(a.rule(state) && !have.has(a.id)){ have.add(a.id); toast(`🏆 Badge: ${a.name}`); } });
+    setUnlocked([...have]);
+    renderAchievements();
+  }
+  function renderAchievements(){
+    const box = $('#achievementsList'); if(!box) return;
+    const have = new Set(getUnlocked());
+    box.innerHTML='';
+    ACH.forEach(a=>{
+      const div = document.createElement('div');
+      div.className='ach';
+      div.innerHTML = `<div class="title">${have.has(a.id)?'✅ ':''}${a.name}</div><div class="meta">${a.desc}</div>`;
+      box.appendChild(div);
+    });
+  }
+
+  // ------------ Small helpers ------------
+  function toast(msg){
+    const t = document.createElement('div');
+    t.textContent = msg; t.style.position='fixed'; t.style.bottom='20px'; t.style.right='20px'; t.style.background='var(--ink)'; t.style.color='#fff'; t.style.padding='10px 14px'; t.style.borderRadius='12px'; t.style.boxShadow='var(--shadow)'; t.style.zIndex=9999;
+    document.body.appendChild(t); setTimeout(()=>t.remove(), 2000);
+  }
+
+  // ------------ Events ------------
+  $('#filter').addEventListener('change', e=>renderMissions(e.target.value, $('#q').value));
+  $('#q').addEventListener('input', e=>renderMissions($('#filter').value, e.target.value));
+  $('#resumeBtn').addEventListener('click', ()=>openLesson(state.lastLesson||1));
+  $('#backToMissions').addEventListener('click', ()=>{
+    $('#view-lesson').classList.remove('active');
+    $('#view-missions').style.display='block';
+  });
+  $$('#view-lesson .tab, #view-lesson .pane .row button').forEach(b=>{
+    const tab = b.dataset?.tab; if(!tab) return; b.addEventListener('click', ()=>setActiveTab(tab));
+  });
+  $('#runCode').addEventListener('click', runPreview);
+  $('#editor').addEventListener('keydown', e=>{ if((e.altKey||e.metaKey) && e.key==='Enter'){ e.preventDefault(); runPreview(); }});
+  $('#resetCode').addEventListener('click', ()=>{ if(!currentLesson) return; $('#editor').value = originalCode; runPreview(); });
+  $('#submitLesson').addEventListener('click', submitLesson);
+  $('#dailyCheck').addEventListener('click', ()=>{
+    const today = fmtDate();
+    if(state.lastCheck===today){ toast('Je hebt vandaag al ingecheckt. 🔁'); return; }
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+    const broke = state.lastCheck && state.lastCheck!==fmtDate(yesterday);
+    state.lastCheck = today; state.streak = broke?1:(state.streak+1||1); state.xp += 20; saveState(); refreshCounters(); maybeUnlockAchievements(); toast('Daily check‑in +20 XP! 🔥');
+  });
+  $('#quickChallenge').addEventListener('click', ()=>{ openLesson(Math.min(LESSONS.length, state.lastLesson+1)); toast('Mini‑missie geladen ⚡'); });
+  $('#resetProgress').addEventListener('click', ()=>{
+    if(confirm('Wil je alle voortgang resetten?')){
+      localStorage.clear(); location.reload();
+    }
+  });
+  $('#runFree').addEventListener('click', ()=>{ $('#freePreview').srcdoc = $('#freeEditor').value; });
+
+  // Sidebar view switching
+  $$('aside .btn[data-view]').forEach(btn=>btn.addEventListener('click', ()=>{
+    $$('aside .btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+    const view = btn.dataset.view;
+    $('#view-missions').style.display = (view==='missions'?'block':'none');
+    $('#view-achievements').style.display = (view==='achievements'?'block':'none');
+    $('#view-practice').style.display = (view==='practice'?'block':'none');
+    $('#view-settings').style.display = (view==='settings'?'block':'none');
+    if(view==='achievements') renderAchievements();
+  }));
+
+  // ------------ Init ------------
+  renderMissions(); refreshCounters(); renderAchievements();
+  // Auto-open last lesson on first visit for quick start
+  // openLesson(state.lastLesson||1);
+  </script>
+</body>
+</html>
