@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lucas Creative Canvas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+    }
+
+    iframe {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      border: none;
+    }
+
+    .fallback {
+      position: fixed;
+      inset: 0;
+      background: #0a0a0a;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      font-size: 1.2rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <iframe
+    src="https://lucas-creative-canvas.lovable.app"
+    id="embedFrame"
+  ></iframe>
+
+  <!-- Fallback als iframe niet geladen mag worden -->
+  <div id="fallback" class="fallback">
+    <p>De site kan niet in een embed geladen worden.</p>
+    <p>
+      Klik hier om hem te openen:  
+      <a href="https://lucas-creative-canvas.lovable.app" style="color:#3b82f6;">Open site</a>
+    </p>
+  </div>
+
+  <script>
+    // Detecteer of de embed geblokkeerd wordt (veilig fallback)
+    const iframe = document.getElementById("embedFrame");
+
+    iframe.onerror = () => {
+      document.getElementById("embedFrame").style.display = "none";
+      document.getElementById("fallback").style.display = "flex";
+    };
+
+    // Sommige browsers blokkeren zonder error → kleine check
+    setTimeout(() => {
+      try {
+        const test = iframe.contentWindow.location;
+      } catch {
+        iframe.style.display = "none";
+        document.getElementById("fallback").style.display = "flex";
+      }
+    }, 1500);
+  </script>
+
+</body>
+</html>
