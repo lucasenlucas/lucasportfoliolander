@@ -21,6 +21,8 @@
       margin: 0;
       overflow: hidden;
       height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
 
     #terminal-history {
@@ -34,8 +36,13 @@
     #terminal-input {
       display: flex;
       align-items: center;
-      gap: 0.25rem;
+      gap: 0.4rem;
       margin-top: 1rem;
+    }
+
+    #prompt {
+      opacity: 0.95;
+      white-space: nowrap;
     }
 
     #terminal-text {
@@ -64,10 +71,19 @@
     }
     #alert.active { display: block; }
 
+    /* Onzichtbaar maar focusbaar: mobile keyboard */
     #mobile-capture {
       position: fixed;
-      left: -9999px;
+      left: 0;
+      bottom: 0;
+      width: 1px;
+      height: 1px;
       opacity: 0;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: transparent;
+      caret-color: transparent;
     }
 
     .ascii {
@@ -75,6 +91,8 @@
       font-size: clamp(8px, 1.6vw, 14px);
       line-height: 1.1;
     }
+
+    .dim { opacity: 0.85; }
   </style>
 </head>
 
@@ -82,32 +100,62 @@
   <ul id="terminal-history"></ul>
 
   <div id="terminal-input">
-    <span>&gt; </span>
+    <span id="prompt"></span>
     <span id="terminal-text"></span>
     <span id="caret"></span>
   </div>
 
   <div id="alert">ABORT...</div>
-  <input id="mobile-capture" />
+  <input id="mobile-capture" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
 
   <script>
     const historyEl = document.getElementById("terminal-history");
     const terminalText = document.getElementById("terminal-text");
+    const promptEl = document.getElementById("prompt");
     const alertBox = document.getElementById("alert");
     const mobileCapture = document.getElementById("mobile-capture");
 
-    const linkedinUrl = "https://nl.linkedin.com/in/lucas-mangroelal-4b458b348";
-
     const routes = {
-      "1": "https://lucasmangroelal.nl/portfolio",
-      "sgdc": "https://lucasmangroelal.nl/sgdc"
+      "portfolio": "https://lucasmangroelal.nl/portfolio",
+      "linkedin": "https://nl.linkedin.com/in/lucas-mangroelal-4b458b348"
     };
 
+    // Tiny fake filesystem voor secret commands
+    const FS = {
+      "/": { type: "dir", children: {
+        "home": { type: "dir", children: {
+          "lucas": { type: "dir", children: {
+            "README.txt": { type: "file", content:
+`Lucas OS — Secret Mode
+
+Probeer:
+- ls
+- cd vault
+- cat hint.txt
+
+(ja dit is nep, maar wel leuk 😉)`},
+            "vault": { type: "dir", children: {
+              "hint.txt": { type: "file", content:
+`Tip: sommige dingen zijn "locked" 👀
+probeer: sudo cat flag.txt` },
+              "flag.txt": { type: "file", content:
+`Permission denied: nice try 😉` }
+            }}
+          }}
+        }},
+        "etc": { type: "dir", children: {
+          "motd": { type: "file", content: "Message of the day: keep shipping." }
+        }}
+      }}
+    };
+
+    let cwd = "/home/lucas";
     let pendingAction = null;
     let currentText = "";
 
-    function addLine(text) {
+    function addLine(text, className = "") {
       const li = document.createElement("li");
+      if (className) li.className = className;
       li.textContent = text;
       historyEl.appendChild(li);
       historyEl.scrollTop = historyEl.scrollHeight;
@@ -120,6 +168,16 @@
       pre.textContent = text;
       li.appendChild(pre);
       historyEl.appendChild(li);
+      historyEl.scrollTop = historyEl.scrollHeight;
+    }
+
+    function clearScreen() {
+      historyEl.innerHTML = "";
+    }
+
+    function updatePrompt() {
+      // clean prompt
+      promptEl.textContent = "> ";
     }
 
     function bar(pct, width = 10) {
@@ -139,30 +197,188 @@
       pendingAction = "linkedin";
     }
 
-    function runCommand(inputRaw) {
-      const input = inputRaw.trim().toLowerCase();
-      if (!input) return;
+    // ===== HELP OUTPUTS =====
+    function cmd_help_normal() {
+      addLine("Commands:");
+      addLine(" - 1           : open mijn portfolio");
+      addLine(" - 2 / linkedin: open mijn LinkedIn (met confirm)");
+      addLine(" - status      : systeemstatus");
+      addLine(" - clear       : maak scherm leeg");
+      addLine(" - help        : toon deze lijst");
+      addLine(' - secret      : toon secret commands');
+      addLine("");
+      addLine('Tip: typ "secret" als je de easter eggs wil zien.');
+    }
 
-      addLine(`> ${inputRaw}`);
+    function cmd_help_secret() {
+      addLine("Secret commands (easter eggs):");
+      addLine(" - ls            : toon mappen/bestanden");
+      addLine(" - cd <map>      : ga naar map (cd .. / cd / / cd ~)");
+      addLine(" - pwd           : huidige locatie");
+      addLine(" - cat <file>    : lees bestand");
+      addLine(" - tree          : mappenboom (kort)");
+      addLine(" - ping <site>   : neppe ping");
+      addLine(" - sudo <cmd>    : Permission denied: nice try 😉");
+      addLine(" - whoami        : ???");
+      addLine(" - date          : tijd/datum");
+      addLine(" - echo <tekst>  : print tekst");
+      addLine(" - glitch        : ???");
+      addLine("");
+      addLine('Try: ls → cd vault → cat hint.txt', "dim");
+    }
+
+    // ===== Fake FS helpers =====
+    function normalizePath(p) {
+      const parts = p.split("/").filter(Boolean);
+      const stack = [];
+      for (const part of parts) {
+        if (part === ".") continue;
+        if (part === "..") stack.pop();
+        else stack.push(part);
+      }
+      return "/" + stack.join("/");
+    }
+
+    function pathJoin(base, part) {
+      if (part.startsWith("/")) return normalizePath(part);
+      if (base === "/") return normalizePath("/" + part);
+      return normalizePath(base + "/" + part);
+    }
+
+    function getNode(path) {
+      const norm = normalizePath(path);
+      const parts = norm.split("/").filter(Boolean);
+      let node = FS["/"];
+      for (const part of parts) {
+        if (!node || node.type !== "dir") return null;
+        node = node.children?.[part];
+      }
+      return node || null;
+    }
+
+    function cmd_ls(args) {
+      const target = args[0] ? pathJoin(cwd, args[0]) : cwd;
+      const node = getNode(target);
+      if (!node) return addLine("ls: No such file or directory");
+      if (node.type !== "dir") return addLine("ls: Not a directory");
+      const names = Object.keys(node.children || {}).sort((a,b)=>a.localeCompare(b));
+      addLine(names.join("  "));
+    }
+
+    function cmd_pwd() { addLine(cwd); }
+
+    function cmd_cd(args) {
+      const raw = args[0] || "~";
+      let target;
+      if (raw === "~" || raw === "") target = "/home/lucas";
+      else if (raw === "/") target = "/";
+      else target = pathJoin(cwd, raw);
+
+      const node = getNode(target);
+      if (!node) return addLine(`cd: no such file or directory: ${raw}`);
+      if (node.type !== "dir") return addLine(`cd: not a directory: ${raw}`);
+      cwd = normalizePath(target);
+    }
+
+    function cmd_cat(args) {
+      const raw = args[0];
+      if (!raw) return addLine("cat: missing file operand");
+      const target = pathJoin(cwd, raw);
+      const node = getNode(target);
+      if (!node) return addLine(`cat: no such file: ${raw}`);
+      if (node.type !== "file") return addLine(`cat: not a file: ${raw}`);
+
+      // extra: block flag content always
+      if (normalizePath(target).endsWith("/flag.txt")) {
+        addLine("Permission denied: nice try 😉");
+        return;
+      }
+
+      node.content.split("\n").forEach(line => addLine(line));
+    }
+
+    function cmd_tree() {
+      function walk(path, depth, prefix) {
+        const node = getNode(path);
+        if (!node || node.type !== "dir") return;
+        const names = Object.keys(node.children || {}).sort((a,b)=>a.localeCompare(b));
+        const shown = names.slice(0, 12);
+        shown.forEach((name, idx) => {
+          const isLast = idx === shown.length - 1;
+          const branch = isLast ? "└─" : "├─";
+          const child = node.children[name];
+          addLine(`${prefix}${branch} ${name}${child.type === "dir" ? "/" : ""}`);
+          if (child.type === "dir" && depth < 2) {
+            walk(pathJoin(path, name), depth + 1, prefix + (isLast ? "   " : "│  "));
+          }
+        });
+        if (names.length > shown.length) addLine(`${prefix}└─ ...`);
+      }
+      addLine(`${cwd}/`);
+      walk(cwd, 0, "");
+    }
+
+    function cmd_ping(args) {
+      const host = args[0];
+      if (!host) return addLine("ping: missing host");
+      addLine(`PING ${host} (192.0.2.${Math.floor(Math.random()*200+1)}): 56 data bytes`);
+      const times = [12, 9, 18, 7].map(t => t + Math.floor(Math.random()*8));
+      times.forEach((t, i) => addLine(`64 bytes from ${host}: icmp_seq=${i+1} ttl=57 time=${t}.0 ms`));
+      addLine(`--- ${host} ping statistics ---`);
+      addLine(`4 packets transmitted, 4 received, 0% packet loss`);
+    }
+
+    function cmd_sudo(rawOriginal) {
+      const after = rawOriginal.replace(/^sudo\s+/i, "");
+      if (!after) return addLine("sudo: no command specified");
+      addLine("sudo: Permission denied: nice try 😉");
+    }
+
+    function cmd_whoami() { addLine("guest"); }
+    function cmd_date() { addLine(new Date().toString()); }
+    function cmd_echo(args) { addLine(args.join(" ")); }
+
+    function runCommand(inputRaw) {
+      const raw = inputRaw.trim();
+      const input = raw.toLowerCase();
+      if (!raw) return;
+
+      addLine(`> ${raw}`);
 
       if (pendingAction === "linkedin") {
-        if (input === "y") {
-          window.location.href = linkedinUrl;
-        } else {
-          addLine("Geannuleerd.");
-        }
+        if (input === "y") window.location.href = routes.linkedin;
+        else addLine("Geannuleerd.");
         pendingAction = null;
         return;
       }
 
-      if (input === "status") return cmd_status();
-      if (input === "1") return window.location.href = routes["1"];
-      if (input === "2" || input === "linkedin") return askLinkedInConfirm();
-      if (input === "sgdc") return window.location.href = routes["sgdc"];
-      if (input === "glitch") return alertBox.classList.add("active");
+      const parts = raw.split(" ").filter(Boolean);
+      const cmd = (parts.shift() || "").toLowerCase();
+      const args = parts;
 
-      addLine(`Command not found: ${inputRaw}`);
-      addLine(`Tip: status, 1, 2, sgdc`);
+      // normal commands
+      if (cmd === "help" || cmd === "?") return cmd_help_normal();
+      if (cmd === "secret") return cmd_help_secret();
+      if (cmd === "status") return cmd_status();
+      if (cmd === "clear") return clearScreen();
+      if (cmd === "1") return window.location.href = routes.portfolio;
+      if (cmd === "2" || cmd === "linkedin") return askLinkedInConfirm();
+      if (cmd === "glitch") return alertBox.classList.add("active");
+
+      // secret commands (only if user "knows" them)
+      if (cmd === "ls") return cmd_ls(args);
+      if (cmd === "cd") return cmd_cd(args);
+      if (cmd === "pwd") return cmd_pwd();
+      if (cmd === "cat") return cmd_cat(args);
+      if (cmd === "tree") return cmd_tree();
+      if (cmd === "ping") return cmd_ping(args);
+      if (cmd === "sudo") return cmd_sudo(raw);
+      if (cmd === "whoami") return cmd_whoami();
+      if (cmd === "date") return cmd_date();
+      if (cmd === "echo") return cmd_echo(args);
+
+      addLine(`Command not found: ${raw}`);
+      addLine(`Tip: 1, 2, help`, "dim");
     }
 
     function render() {
@@ -173,8 +389,20 @@
       runCommand(currentText);
       currentText = "";
       render();
+      focusMobileKeyboard();
     }
 
+    // === MOBIEL KEYBOARD FIX ===
+    const isTouchDevice =
+      ("ontouchstart" in window) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+
+    function focusMobileKeyboard() {
+      if (!isTouchDevice) return;
+      mobileCapture.focus({ preventScroll: true });
+    }
+
+    // Desktop keyboard
     window.addEventListener("keydown", e => {
       if (e.key === "Enter") submit();
       else if (e.key === "Backspace") currentText = currentText.slice(0, -1);
@@ -182,7 +410,37 @@
       render();
     });
 
+    // Mobiel: software keyboard
+    mobileCapture.addEventListener("input", () => {
+      const v = mobileCapture.value;
+      if (!v) return;
+
+      for (const ch of v) {
+        if (ch === "\n") submit();
+        else currentText += ch;
+      }
+      mobileCapture.value = "";
+      render();
+    });
+
+    mobileCapture.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submit();
+      } else if (e.key === "Backspace") {
+        currentText = currentText.slice(0, -1);
+        render();
+      }
+    });
+
+    document.addEventListener("pointerdown", () => focusMobileKeyboard());
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) focusMobileKeyboard();
+    });
+
     function boot() {
+      updatePrompt();
+
       const bootLines = [
         "Booting system...",
         "Loading config...",
@@ -192,14 +450,11 @@
         "[1] Bekijk mijn portfolio",
         "[2] Bekijk mijn LinkedIn",
         "",
-        "> status"
+        'Typ "help" voor commands.'
       ];
 
-      bootLines.forEach((l, i) =>
-        setTimeout(() => addLine(l), i * 300)
-      );
-
-      setTimeout(cmd_status, bootLines.length * 300 + 200);
+      bootLines.forEach((l, i) => setTimeout(() => addLine(l), i * 280));
+      setTimeout(cmd_status, bootLines.length * 280 + 200);
 
       setTimeout(() => addAscii(
 `██╗     ██╗   ██╗ ██████╗ █████╗ ███████╗     ██████╗ ███████╗
@@ -207,7 +462,11 @@
 ██║     ██║   ██║██║     ███████║███████╗    ██║   ██║███████╗
 ██║     ██║   ██║██║     ██╔══██║╚════██║    ██║   ██║╚════██║
 ███████╗╚██████╔╝╚██████╗██║  ██║███████║    ╚██████╔╝███████║
-╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝     ╚═════╝ ╚══════╝`), bootLines.length * 300 + 800);
+╚══════╝ ╚═════╝  ╚═════╝╚═╝  ╚═╝╚══════╝     ╚═════╝ ╚══════╝`),
+        bootLines.length * 280 + 650
+      );
+
+      setTimeout(() => focusMobileKeyboard(), 100);
     }
 
     boot();
