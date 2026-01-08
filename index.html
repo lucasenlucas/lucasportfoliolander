@@ -153,6 +153,11 @@ probeer: sudo cat flag.txt` },
     let pendingAction = null;
     let currentText = "";
 
+    // Detect touch device (voor mobile keyboard fix + voorkomen van dubbel typen)
+    const isTouchDevice =
+      ("ontouchstart" in window) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+
     function addLine(text, className = "") {
       const li = document.createElement("li");
       if (className) li.className = className;
@@ -176,7 +181,6 @@ probeer: sudo cat flag.txt` },
     }
 
     function updatePrompt() {
-      // clean prompt
       promptEl.textContent = "> ";
     }
 
@@ -365,7 +369,7 @@ probeer: sudo cat flag.txt` },
       if (cmd === "2" || cmd === "linkedin") return askLinkedInConfirm();
       if (cmd === "glitch") return alertBox.classList.add("active");
 
-      // secret commands (only if user "knows" them)
+      // secret commands (user has to know them)
       if (cmd === "ls") return cmd_ls(args);
       if (cmd === "cd") return cmd_cd(args);
       if (cmd === "pwd") return cmd_pwd();
@@ -392,18 +396,15 @@ probeer: sudo cat flag.txt` },
       focusMobileKeyboard();
     }
 
-    // === MOBIEL KEYBOARD FIX ===
-    const isTouchDevice =
-      ("ontouchstart" in window) ||
-      (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-
     function focusMobileKeyboard() {
       if (!isTouchDevice) return;
       mobileCapture.focus({ preventScroll: true });
     }
 
-    // Desktop keyboard
+    // ✅ Desktop keyboard (NIET op touch devices → voorkomt dubbel typen)
     window.addEventListener("keydown", e => {
+      if (isTouchDevice) return;
+
       if (e.key === "Enter") submit();
       else if (e.key === "Backspace") currentText = currentText.slice(0, -1);
       else if (e.key.length === 1) currentText += e.key;
