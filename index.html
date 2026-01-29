@@ -115,7 +115,6 @@
     const alertBox = document.getElementById("alert");
     const mobileCapture = document.getElementById("mobile-capture");
 
-    // ✅ Strakke routes (geen rare keys)
     const routes = {
       portfolio: "https://lucasmangroelal.nl/portfolio",
       linkedin: "https://nl.linkedin.com/in/lucas-mangroelal-4b458b348",
@@ -156,7 +155,6 @@ probeer: sudo cat flag.txt` },
     let pendingAction = null;
     let currentText = "";
 
-    // Detect touch device (voor mobile keyboard fix + voorkomen van dubbel typen)
     const isTouchDevice =
       ("ontouchstart" in window) ||
       (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
@@ -197,11 +195,12 @@ probeer: sudo cat flag.txt` },
       addLine(`RAM: ${bar(41)} 41%`);
     }
 
-    function askLinkedInConfirm() {
-      addLine("Dit opent mijn LinkedIn-profiel.");
-      addLine("Voeg me gelijk toe als connectie als je toch een kijkje neemt.");
+    // ✅ 1 confirm-functie voor alles (LinkedIn/Repo/Docs)
+    function askConfirm(action, title, extraLine = "") {
+      addLine(`Dit opent: ${title}`);
+      if (extraLine) addLine(extraLine);
       addLine('Typ "y" om door te gaan:');
-      pendingAction = "linkedin";
+      pendingAction = action;
     }
 
     // ===== HELP OUTPUTS =====
@@ -209,8 +208,8 @@ probeer: sudo cat flag.txt` },
       addLine("Commands:");
       addLine(" - 1              : open mijn portfolio");
       addLine(" - 2 / linkedin    : open mijn LinkedIn (met confirm)");
-      addLine(" - 3 / kitrepo     : open Lucas Kit GitHub repo");
-      addLine(" - 4 / kitdocs     : open Lucas Kit documentatie");
+      addLine(" - 3 / kitrepo     : open Lucas Kit GitHub repo (met confirm)");
+      addLine(" - 4 / kitdocs     : open Lucas Kit documentatie (met confirm)");
       addLine(" - status         : systeemstatus");
       addLine(" - clear          : maak scherm leeg");
       addLine(" - help           : toon deze lijst");
@@ -295,7 +294,6 @@ probeer: sudo cat flag.txt` },
       if (!node) return addLine(`cat: no such file: ${raw}`);
       if (node.type !== "file") return addLine(`cat: not a file: ${raw}`);
 
-      // extra: block flag content always
       if (normalizePath(target).endsWith("/flag.txt")) {
         addLine("Permission denied: nice try 😉");
         return;
@@ -352,9 +350,15 @@ probeer: sudo cat flag.txt` },
 
       addLine(`> ${raw}`);
 
-      if (pendingAction === "linkedin") {
-        if (input === "y") window.location.href = routes.linkedin;
-        else addLine("Geannuleerd.");
+      // ✅ Confirm handler
+      if (pendingAction) {
+        if (input === "y") {
+          if (pendingAction === "linkedin") window.location.href = routes.linkedin;
+          if (pendingAction === "kitrepo") window.location.href = routes.lucasKitRepo;
+          if (pendingAction === "kitdocs") window.location.href = routes.lucasKitDocs;
+        } else {
+          addLine("Geannuleerd.");
+        }
         pendingAction = null;
         return;
       }
@@ -363,18 +367,36 @@ probeer: sudo cat flag.txt` },
       const cmd = (parts.shift() || "").toLowerCase();
       const args = parts;
 
-      // normal commands
       if (cmd === "help" || cmd === "?") return cmd_help_normal();
       if (cmd === "secret") return cmd_help_secret();
       if (cmd === "status") return cmd_status();
       if (cmd === "clear") return clearScreen();
 
       if (cmd === "1") return window.location.href = routes.portfolio;
-      if (cmd === "2" || cmd === "linkedin") return askLinkedInConfirm();
 
-      // ✅ Lucas Kit zichtbaar & werkend
-      if (cmd === "3" || cmd === "kitrepo") return window.location.href = routes.lucasKitRepo;
-      if (cmd === "4" || cmd === "kitdocs") return window.location.href = routes.lucasKitDocs;
+      if (cmd === "2" || cmd === "linkedin") {
+        return askConfirm(
+          "linkedin",
+          "LinkedIn profiel",
+          "Voeg me gelijk toe als connectie als je toch een kijkje neemt."
+        );
+      }
+
+      if (cmd === "3" || cmd === "kitrepo") {
+        return askConfirm(
+          "kitrepo",
+          "Lucas Kit GitHub Repo",
+          "Hier staan alle code + releases."
+        );
+      }
+
+      if (cmd === "4" || cmd === "kitdocs") {
+        return askConfirm(
+          "kitdocs",
+          "Lucas Kit Documentation",
+          "Hier staat de uitleg + commands."
+        );
+      }
 
       if (cmd === "glitch") return alertBox.classList.add("active");
 
@@ -410,7 +432,6 @@ probeer: sudo cat flag.txt` },
       mobileCapture.focus({ preventScroll: true });
     }
 
-    // ✅ Desktop keyboard (NIET op touch devices → voorkomt dubbel typen)
     window.addEventListener("keydown", e => {
       if (isTouchDevice) return;
 
@@ -420,7 +441,6 @@ probeer: sudo cat flag.txt` },
       render();
     });
 
-    // Mobiel: software keyboard
     mobileCapture.addEventListener("input", () => {
       const v = mobileCapture.value;
       if (!v) return;
