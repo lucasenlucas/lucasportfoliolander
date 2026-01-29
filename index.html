@@ -115,12 +115,12 @@
     const alertBox = document.getElementById("alert");
     const mobileCapture = document.getElementById("mobile-capture");
 
+    // ✅ Strakke routes (geen rare keys)
     const routes = {
-      "portfolio": "https://lucasmangroelal.nl/portfolio",
-      "LUCAS_KIT REPO": "https://github.com/lucasenlucas/Lucas_Kit",
-      "LUCAS_KIT DOCUMENTATION": "https://lucasmangroelal.nl/lucas_kit",
-      "linkedin": "https://nl.linkedin.com/in/lucas-mangroelal-4b458b348"
-      
+      portfolio: "https://lucasmangroelal.nl/portfolio",
+      linkedin: "https://nl.linkedin.com/in/lucas-mangroelal-4b458b348",
+      lucasKitRepo: "https://github.com/lucasenlucas/Lucas_Kit",
+      lucasKitDocs: "https://lucasmangroelal.nl/lucas_kit"
     };
 
     // Tiny fake filesystem voor secret commands
@@ -207,14 +207,14 @@ probeer: sudo cat flag.txt` },
     // ===== HELP OUTPUTS =====
     function cmd_help_normal() {
       addLine("Commands:");
-      addLine(" - 1           : open mijn portfolio");
-      addLine(" - 2 / linkedin: open mijn LinkedIn (met confirm)");
-      addLine(" - status      : systeemstatus");
-      addLine(" - clear       : maak scherm leeg");
-      addLine(" - help        : toon deze lijst");
-      addLine(' - secret      : toon secret commands');
-      addLine("");
-      addLine('Tip: typ "secret" als je de easter eggs wil zien.');
+      addLine(" - 1              : open mijn portfolio");
+      addLine(" - 2 / linkedin    : open mijn LinkedIn (met confirm)");
+      addLine(" - 3 / kitrepo     : open Lucas Kit GitHub repo");
+      addLine(" - 4 / kitdocs     : open Lucas Kit documentatie");
+      addLine(" - status         : systeemstatus");
+      addLine(" - clear          : maak scherm leeg");
+      addLine(" - help           : toon deze lijst");
+      addLine(' - secret         : toon secret commands');
     }
 
     function cmd_help_secret() {
@@ -368,11 +368,17 @@ probeer: sudo cat flag.txt` },
       if (cmd === "secret") return cmd_help_secret();
       if (cmd === "status") return cmd_status();
       if (cmd === "clear") return clearScreen();
+
       if (cmd === "1") return window.location.href = routes.portfolio;
       if (cmd === "2" || cmd === "linkedin") return askLinkedInConfirm();
+
+      // ✅ Lucas Kit zichtbaar & werkend
+      if (cmd === "3" || cmd === "kitrepo") return window.location.href = routes.lucasKitRepo;
+      if (cmd === "4" || cmd === "kitdocs") return window.location.href = routes.lucasKitDocs;
+
       if (cmd === "glitch") return alertBox.classList.add("active");
 
-      // secret commands (user has to know them)
+      // secret commands
       if (cmd === "ls") return cmd_ls(args);
       if (cmd === "cd") return cmd_cd(args);
       if (cmd === "pwd") return cmd_pwd();
@@ -385,7 +391,7 @@ probeer: sudo cat flag.txt` },
       if (cmd === "echo") return cmd_echo(args);
 
       addLine(`Command not found: ${raw}`);
-      addLine(`Tip: 1, 2, help`, "dim");
+      addLine(`Tip: 1, 2, 3, 4, help`, "dim");
     }
 
     function render() {
@@ -453,6 +459,8 @@ probeer: sudo cat flag.txt` },
         "Voer het nummer in van je keuze:",
         "[1] Bekijk mijn portfolio",
         "[2] Bekijk mijn LinkedIn",
+        "[3] Lucas Kit Repo (GitHub)",
+        "[4] Lucas Kit Documentation",
         "",
         'Typ "help" voor commands.'
       ];
